@@ -1440,7 +1440,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-17 · 43</span>
+    الإصدار <span style="font-weight:700">2026-07-17 · 44</span>
   </div>
 </div>
 
@@ -3880,12 +3880,12 @@ function openReportLink(id) { return `${window.location.origin}/or/${id}`; }
 function copyOpenRsvpLink() {
   const link = openRsvpLink(currentEventId);
   navigator.clipboard.writeText(link);
-  alert('تم نسخ رابط التأكيد الموحد!\n\nأرسليه لكل الضيوف مع صورة الدعوة — كل ضيفة تكتب اسمها وتأكد حضورها من نفس الرابط (بدون باركود)\n\n' + link);
+  alert('تم نسخ رابط التأكيد الموحد!\n\nهذا الرابط تعطينه للعميلة (صاحبة الحفل) — ترسله لضيوفها مع صورة الدعوة:\n\n• كل ضيفة تفتحه وتكتب اسمها\n• تختار سأحضر أو أعتذر\n• بدون باركود وبدون تسجيل\n\nرابط واحد يكفي كل الضيوف.\n\n' + link);
 }
 function copyOpenReportLink() {
   const link = openReportLink(currentEventId);
   navigator.clipboard.writeText(link);
-  alert('تم نسخ رابط تقرير التأكيد الموحد!\n\nهذا لك أنتِ — تشوفين فيه كل الردود مباشرة أول بأول\n\n' + link);
+  alert('تم نسخ رابط تقرير التأكيد الموحد!\n\nهذا الرابط تعطينه للعميلة (صاحبة الحفل) — تفتحه وتشوف ردود الرابط الموحد محدّثة تلقائياً:\n\n• من أكّدت الحضور ومن اعتذرت\n• أرقامهم ورسائلهم\n\nيتحدث لحاله بدون ما تعيد تحميل.\n\n' + link);
 }
 function thanksLink(id)     { return `${window.location.origin}/t/${id}`; }
 
