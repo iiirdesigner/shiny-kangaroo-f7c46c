@@ -341,11 +341,11 @@
   /* الخلفية المرسومة */
   .auth-hero { position:absolute; inset:0; z-index:0; overflow:hidden; }
 
-  /* أقواس ذهبية تتنفس */
+  /* خلفية مبسّطة: توهج هادئ ثابت فقط — الحركة كانت تشوّش على الجوال */
+  .auth-hero .grid, .auth-hero .arc, .auth-hero .dot { display:none !important; }
   .auth-hero .arc {
     position:absolute; border-radius:50%;
     border:1px solid rgba(178,140,90,.35);
-    animation:arcFloat 14s ease-in-out infinite;
   }
   .auth-hero .arc.a1 { width:520px; height:520px; top:-140px; right:-120px; animation-delay:0s; }
   .auth-hero .arc.a2 { width:380px; height:380px; bottom:-110px; left:-90px; border-color:rgba(178,140,90,.26); animation-delay:-5s; }
@@ -372,7 +372,7 @@
     position:absolute; top:38%; left:50%; width:460px; height:460px;
     margin:-230px 0 0 -230px; border-radius:50%;
     background:radial-gradient(circle, rgba(194,163,107,.30) 0%, rgba(194,163,107,.10) 40%, transparent 68%);
-    animation:glowPulse 5.5s ease-in-out infinite;
+    /* ثابت */
   }
 
   @keyframes arcFloat {
@@ -463,10 +463,14 @@
   #auth-page .form-label { color:rgba(61,46,34,.72); font-weight:700; }
   #auth-page .btn-primary {
     padding:15px; font-size:15px; border-radius:14px;
-    box-shadow:0 10px 24px -10px rgba(196,149,106,.7);
+    background:linear-gradient(135deg, rgba(139,94,60,.92), rgba(59,39,24,.94)) !important;
+    color:#F8F0E4 !important;
+    border:1px solid rgba(255,255,255,.28);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    box-shadow:0 12px 26px -12px rgba(59,39,24,.55), 0 1px 0 rgba(255,255,255,.28) inset;
     transition:transform .15s, box-shadow .2s;
   }
-  #auth-page .btn-primary:hover { transform:translateY(-1px); box-shadow:0 14px 30px -10px color-mix(in srgb, var(--rose) 85%, transparent); }
+  #auth-page .btn-primary:hover { transform:translateY(-1px); box-shadow:0 16px 32px -12px rgba(59,39,24,.65), 0 1px 0 rgba(255,255,255,.3) inset; }
   #auth-page .btn-primary:active { transform:translateY(0); }
   
   .bawaba-logo-wrap { position:relative; }
@@ -1436,7 +1440,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-17 · 42</span>
+    الإصدار <span style="font-weight:700">2026-07-17 · 43</span>
   </div>
 </div>
 
