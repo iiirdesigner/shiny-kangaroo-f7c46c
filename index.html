@@ -97,21 +97,22 @@
 
   /* زر الدخول */
   .enter {
-    display:inline-flex; align-items:center; gap:12px;
-    background:linear-gradient(135deg, var(--gold), #B98F42);
-    color:#2A1F16; text-decoration:none;
-    font-family:inherit; font-size:16.5px; font-weight:800; letter-spacing:.3px;
-    padding:17px 52px; border-radius:100px; border:1px solid rgba(255,255,255,.28);
-    box-shadow: 0 16px 40px -12px rgba(212,168,83,.6), 0 1px 0 rgba(255,255,255,.45) inset;
+    display:inline-flex; align-items:center; gap:10px;
+    background:linear-gradient(135deg, rgba(139,94,60,.92), rgba(59,39,24,.94));
+    color:#F8F0E4; text-decoration:none;
+    font-family:inherit; font-size:14.5px; font-weight:800; letter-spacing:.3px;
+    padding:13px 40px; border-radius:100px; border:1px solid rgba(255,255,255,.3);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    box-shadow: 0 14px 32px -12px rgba(59,39,24,.5), 0 1px 0 rgba(255,255,255,.3) inset;
     opacity:0; transform:translateY(20px);
     animation: btnIn 1s cubic-bezier(.16,1,.3,1) 2.4s forwards;
     transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .32s ease;
     position:relative; overflow:hidden;
   }
   @keyframes btnIn { to { opacity:1; transform:translateY(0); } }
-  .enter:hover  { transform:translateY(-3px); box-shadow:0 24px 52px -12px rgba(212,168,83,.78), 0 1px 0 rgba(255,255,255,.5) inset; }
+  .enter:hover  { transform:translateY(-3px); box-shadow:0 20px 42px -12px rgba(59,39,24,.6), 0 1px 0 rgba(255,255,255,.35) inset; }
   .enter:active { transform:translateY(0) scale(.96); }
-  .enter svg { width:19px; height:19px; }
+  .enter svg { width:16px; height:16px; }
   /* بريق يمر على الزر */
   .enter::after {
     content:''; position:absolute; top:0; bottom:0; left:-40%; width:32%;
