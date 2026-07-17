@@ -1,75 +1,45 @@
 // ═══════════════════════════════════════════════════════════════
-//  R•Code — Edge Function لمعاينة الواتساب — النسخة 3
+//  R•Code — Edge Function لمعاينة الواتساب — النسخة 4
 //  كل دعوة تطلع بغلافها المخصّص (أو صورة الدعوة) بكرت واتساب
 //
 //  الأولوية:  غلاف المعاينة  ←  صورة الدعوة  ←  شعار الموقع
 //
-//  الجديد في النسخة 2:
-//  • صفحة تشخيص ذاتي: rqr0.com/الكود?debug=og
-//    تعرض بالعربي وين وصلت الدالة ووش لقت — بدون أسرار
-//  • حذف content-encoding مع content-length (تحصين)
+//  الجديد في النسخة 4:
+//  • القراءة عبر الدالة الآمنة pub_preview_image (ملف preview-rpc.sql)
+//    بدل قراءة الجداول مباشرة — الجداول مقفولة عن الزوار وهذا صح.
+//  • استعلام واحد بدل اثنين — أسرع للمعاينة.
+//  • صفحة التشخيص باقية: rqr0.com/الكود?debug=og
 // ═══════════════════════════════════════════════════════════════
 
 const SUPABASE_URL = 'https://lutfjdsuinaqswvgkmet.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1dGZqZHN1aW5hcXN3dmdrbWV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTYyMjQsImV4cCI6MjA5ODgzMjIyNH0.roY4YGSmYtsOC6TFtmgRZ9velYJzNQasIomITBC3v8g';
 
-const H = {
-  'apikey': SUPABASE_KEY,
-  'Authorization': `Bearer ${SUPABASE_KEY}`,
-};
-
-// يجيب صورة المعاينة لكود ضيفة — ويسجّل كل خطوة في steps
+// يجيب رابط صورة المعاينة عبر الدالة الآمنة — ويسجّل كل خطوة في steps
 async function lookupImage(code, steps) {
-  // 1) الضيفة → event_id
-  const gRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/guests?qr_code=eq.${encodeURIComponent(code)}&select=event_id&limit=1`,
-    { headers: H }
-  );
-  steps.push(`استعلام الضيفة: HTTP ${gRes.status}`);
-  if (!gRes.ok) {
-    steps.push('❌ القاعدة رفضت استعلام الضيفة');
-    try {
-      const body = await gRes.text();
-      steps.push(`سبب الرفض من القاعدة: ${body.slice(0, 300)}`);
-    } catch (e) { /* تجاهل */ }
-    steps.push(`بصمة المفتاح المنشور: الطول ${SUPABASE_KEY.length} (الصحيح 208) | أوله ${SUPABASE_KEY.slice(0, 10)} | آخره ${SUPABASE_KEY.slice(-6)} (الصحيح BC3v8g)`);
-    // تجربة ثانية: بترويسة apikey فقط بدون Authorization
-    try {
-      const alt = await fetch(
-        `${SUPABASE_URL}/rest/v1/guests?qr_code=eq.${encodeURIComponent(code)}&select=event_id&limit=1`,
-        { headers: { 'apikey': SUPABASE_KEY } }
-      );
-      steps.push(`تجربة بطريقة مصادقة ثانية: HTTP ${alt.status}${alt.ok ? ' ✅ نجحت!' : ''}`);
-      if (!alt.ok) { try { steps.push(`ردّها: ${(await alt.text()).slice(0, 200)}`); } catch (e) { /* تجاهل */ } }
-    } catch (e) { steps.push(`تعذّرت التجربة الثانية: ${e.message}`); }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pub_preview_image`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ code_input: code }),
+  });
+  steps.push(`استعلام الدالة الآمنة: HTTP ${res.status}`);
+
+  if (!res.ok) {
+    try { steps.push(`سبب الرفض: ${(await res.text()).slice(0, 300)}`); } catch (e) { /* تجاهل */ }
+    steps.push('❌ لو السبب يذكر Could not find the function — معناه ملف preview-rpc.sql ما تشغّل بعد في Supabase');
     return null;
   }
 
-  const guests = await gRes.json();
-  steps.push(`عدد النتائج: ${guests.length}`);
-  if (!guests.length || !guests[0].event_id) { steps.push('❌ ما فيه ضيفة بهذا الكود'); return null; }
-  steps.push(`✅ لقينا الضيفة — رقم المناسبة: ${guests[0].event_id}`);
-
-  // 2) المناسبة → الصور
-  const eRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/events?id=eq.${guests[0].event_id}&select=name,cover_image,preview_image&limit=1`,
-    { headers: H }
-  );
-  steps.push(`استعلام المناسبة: HTTP ${eRes.status}`);
-  if (!eRes.ok) { steps.push('❌ القاعدة رفضت استعلام المناسبة'); return null; }
-
-  const events = await eRes.json();
-  if (!events.length) { steps.push('❌ المناسبة مو موجودة'); return null; }
-
-  const ev = events[0];
-  steps.push(`✅ المناسبة: ${ev.name}`);
-  steps.push(`غلاف المعاينة: ${ev.preview_image ? '✅ موجود' : '— فاضي'}`);
-  steps.push(`صورة الدعوة: ${ev.cover_image ? '✅ موجود' : '— فاضي'}`);
-
-  const image = ev.preview_image || ev.cover_image;
-  if (!image) { steps.push('❌ ما فيه أي صورة — بتطلع الافتراضية'); return null; }
-  if (image.startsWith('data:')) { steps.push('⚠️ الصورة محفوظة كنص مضغوط (data:) مو رابط — الواتساب ما يقبلها'); return null; }
-  steps.push(`✅ الصورة النهائية: ${image.slice(0, 90)}…`);
+  const image = await res.json(); // نص الرابط أو null
+  if (!image) { steps.push('❌ ما فيه صورة لهذا الكود (الكود غلط، أو المناسبة بدون غلاف وبدون صورة دعوة) — بتطلع الافتراضية'); return null; }
+  if (typeof image === 'string' && image.startsWith('data:')) {
+    steps.push('⚠️ الصورة محفوظة كنص مضغوط (data:) مو رابط — الواتساب ما يقبلها، بتطلع الافتراضية');
+    return null;
+  }
+  steps.push(`✅ الصورة النهائية: ${String(image).slice(0, 90)}…`);
   return image;
 }
 
@@ -80,7 +50,7 @@ export default async (request, context) => {
 
   // ── صفحة التشخيص الذاتي: /الكود?debug=og ──
   if (code && url.searchParams.get('debug') === 'og') {
-    const steps = [`الدالة تشتغل ✅ — النسخة 2`, `الكود الملتقط: ${code}`];
+    const steps = [`الدالة تشتغل ✅ — النسخة 4`, `الكود الملتقط: ${code}`];
     try { await lookupImage(code, steps); }
     catch (e) { steps.push(`❌ خطأ غير متوقع: ${e.message}`); }
     return new Response(steps.join('\n'), {
