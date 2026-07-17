@@ -1436,7 +1436,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-17 · 41</span>
+    الإصدار <span style="font-weight:700">2026-07-17 · 42</span>
   </div>
 </div>
 
@@ -1853,6 +1853,8 @@ function injectIcons(root=document) {
               <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
               <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
               <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
+              <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
+              <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
               <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
               <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
               <button class="btn btn-secondary" onclick="copyThanksLink()" style="padding:13px 10px;font-size:13.5px" data-ic="flower">صفحة الشكر</button>
@@ -2627,6 +2629,14 @@ async function init() {
     showRsvpPage(rsvpCode);
     return;
   }
+
+  // الرابط الموحد: تأكيد حضور بدون باركود
+  const openId = params.get('open');
+  if (openId) { showOpenRsvpPage(openId); return; }
+
+  // تقرير الرابط الموحد (للعميلة)
+  const openReportId = params.get('openreport');
+  if (openReportId) { showOpenReportPage(openReportId); return; }
 
   // اللوحة المباشرة (عرض حي)
   const liveId = params.get('live');
@@ -3860,6 +3870,19 @@ function generateQRCode() {
 function inviteLink(code)   { return `${window.location.origin}/${code}`; }   // الأقصر: rqr0.com/K7M2QXR9
 function scannerLink(id)    { return `${window.location.origin}/m/${id}`; }
 function liveLink(id)       { return `${window.location.origin}/r/${id}`; }
+function openRsvpLink(id)   { return `${window.location.origin}/c/${id}`; }
+function openReportLink(id) { return `${window.location.origin}/or/${id}`; }
+
+function copyOpenRsvpLink() {
+  const link = openRsvpLink(currentEventId);
+  navigator.clipboard.writeText(link);
+  alert('تم نسخ رابط التأكيد الموحد!\n\nأرسليه لكل الضيوف مع صورة الدعوة — كل ضيفة تكتب اسمها وتأكد حضورها من نفس الرابط (بدون باركود)\n\n' + link);
+}
+function copyOpenReportLink() {
+  const link = openReportLink(currentEventId);
+  navigator.clipboard.writeText(link);
+  alert('تم نسخ رابط تقرير التأكيد الموحد!\n\nهذا لك أنتِ — تشوفين فيه كل الردود مباشرة أول بأول\n\n' + link);
+}
 function thanksLink(id)     { return `${window.location.origin}/t/${id}`; }
 
 async function saveGuest() {
@@ -5382,6 +5405,141 @@ function copyLiveLink() {
   const link = liveLink(currentEventId);
   navigator.clipboard.writeText(link);
  alert('تم نسخ رابط التقرير المباشر!\n\nهذا الرابط تعطينه للعميلة (صاحبة الحفل) — تفتحه وتشوف كل شي محدّث تلقائياً:\n\n• الحضور والتأكيدات والاعتذارات\n• التهاني اللي يكتبونها\n\nيتحدث لحاله كل 5 ثواني بدون ما تعيد تحميل.\n\n' + link);
+}
+
+// ═══════ الرابط الموحد: صفحة تأكيد الحضور (بدون باركود) ═══════
+async function showOpenRsvpPage(eventId) {
+  document.getElementById('loading').style.display = 'none';
+  const { data: ev } = await db.rpc('pub_open_event_get', { event_input: eventId });
+  if (!ev || !ev.name) { document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif" dir="rtl">المناسبة غير موجودة</div>'; return; }
+  if (ev.color) document.documentElement.style.setProperty('--rose', ev.color);
+
+  document.body.innerHTML = `
+    <div id="rsvp-page" style="display:flex">
+      <div class="rsvp-card">
+        ${ev.cover_image ? `<img src="${esc(ev.cover_image)}" style="width:100%;border-radius:16px;margin-bottom:22px;display:block" onerror="this.remove()">` : ''}
+        <div class="rsvp-event-name">${esc(ev.name)}</div>
+        <div style="color:var(--text-light);font-size:14.5px;margin-bottom:22px">يشرّفنا حضورك — أكّدي لنا من هنا</div>
+
+        <div id="open-form" style="text-align:right">
+          <div class="form-group">
+            <label class="form-label">اسمك *</label>
+            <input type="text" id="open-name" class="form-input" placeholder="الاسم الكريم" maxlength="80">
+          </div>
+          <div class="form-group">
+            <label class="form-label">رقم الجوال <span style="font-weight:400;color:var(--text-light)">(اختياري)</span></label>
+            <input type="tel" id="open-phone" class="form-input" placeholder="05xxxxxxxx" maxlength="20" style="direction:ltr;text-align:right">
+          </div>
+          <div class="form-group">
+            <label class="form-label">رسالة <span style="font-weight:400;color:var(--text-light)">(اختياري)</span></label>
+            <textarea id="open-msg" class="form-input" rows="2" placeholder="كلمة حلوة أو ملاحظة..." maxlength="500"></textarea>
+          </div>
+          <div class="rsvp-buttons">
+            <button class="btn btn-decline" onclick="submitOpenRsvp('declined')"><span data-ic="x" data-ic-size="16"></span> أعتذر</button>
+            <button class="btn btn-accept" onclick="submitOpenRsvp('confirmed')"><span data-ic="check" data-ic-size="16"></span> سأحضر</button>
+          </div>
+          <div id="open-err" style="display:none;margin-top:12px;color:var(--error);font-weight:700;font-size:13.5px;text-align:center"></div>
+        </div>
+
+        <div id="open-done" style="display:none;padding:26px 10px 6px">
+          <div class="gate-mark" style="color:#2e7d32" id="open-done-mark"></div>
+          <div class="gate-title" id="open-done-title" style="color:#2e7d32"></div>
+          <div class="gate-sub" id="open-done-sub"></div>
+        </div>
+      </div>
+    </div>`;
+  injectIcons();
+  window._openEventId = eventId;
+}
+
+let _openSubmitting = false;
+async function submitOpenRsvp(status) {
+  if (_openSubmitting) return;
+  const name = document.getElementById('open-name').value.trim();
+  const err = document.getElementById('open-err');
+  if (!name) { err.textContent = 'اكتبي اسمك أول 🤍'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  _openSubmitting = true;
+
+  const { data: ok } = await db.rpc('pub_open_rsvp_submit', {
+    event_input: window._openEventId,
+    name_input: name,
+    phone_input: document.getElementById('open-phone').value.trim(),
+    status_input: status,
+    msg_input: document.getElementById('open-msg').value.trim()
+  });
+
+  _openSubmitting = false;
+  if (!ok) { err.textContent = 'صار خلل بسيط — جربي مرة ثانية'; err.style.display = 'block'; return; }
+
+  document.getElementById('open-form').style.display = 'none';
+  const mark = document.getElementById('open-done-mark');
+  const title = document.getElementById('open-done-title');
+  const sub = document.getElementById('open-done-sub');
+  if (status === 'confirmed') {
+    mark.innerHTML = IC.check; title.textContent = 'تم تأكيد حضورك';
+    sub.textContent = 'في انتظارك — يسعدنا تشريفك';
+  } else {
+    mark.innerHTML = IC.heart || IC.check; mark.style.color = '#92400E'; title.style.color = '#92400E';
+    title.textContent = 'وصلنا اعتذارك';
+    sub.textContent = 'شكراً لإخبارنا — نتمنى لك دوام الصحة والعافية';
+  }
+  document.getElementById('open-done').style.display = 'block';
+  injectIcons();
+}
+
+// ═══════ تقرير الرابط الموحد — للعميلة (يتحدث تلقائياً) ═══════
+async function showOpenReportPage(eventId) {
+  document.getElementById('loading').style.display = 'none';
+  const { data } = await db.rpc('pub_open_report_get', { event_input: eventId });
+  if (!data || !data.event) { document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif" dir="rtl">المناسبة غير موجودة</div>'; return; }
+  const color = data.event.color || '#C4956A';
+
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#faf6f0;font-family:'IBM Plex Sans Arabic',sans-serif;padding:24px 16px" dir="rtl">
+      <div style="max-width:640px;margin:0 auto">
+        <div style="text-align:center;padding:24px;background:linear-gradient(135deg,${color},${color}dd);border-radius:22px;color:#fff;margin-bottom:16px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600">${esc(data.event.name)}</div>
+          <div style="margin-top:10px;font-size:12px;opacity:.9">
+            <span style="display:inline-block;width:7px;height:7px;background:#7CFC9A;border-radius:50%;margin-left:6px;animation:livePulse 1.5s infinite"></span>
+            تقرير التأكيد الموحد — يتحدث تلقائياً
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="or-stats"></div>
+        <div id="or-list" style="background:#fff;border-radius:16px;padding:8px;min-height:180px;box-shadow:0 2px 12px rgba(0,0,0,.04)"></div>
+      </div>
+    </div>`;
+
+  const statCard = (n, label, c) => `<div style="background:#fff;border-radius:16px;padding:16px 8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.04)">
+      <div style="font-size:26px;font-weight:800;color:${c}">${n}</div>
+      <div style="font-size:12px;color:#8E7A66;font-weight:700">${label}</div></div>`;
+
+  function render(entries) {
+    const conf = entries.filter(e => e.status === 'confirmed');
+    const dec = entries.filter(e => e.status === 'declined');
+    document.getElementById('or-stats').innerHTML =
+      statCard(conf.length, 'أكّدوا الحضور', '#2e7d32') +
+      statCard(dec.length, 'اعتذروا', '#b45309') +
+      statCard(entries.length, 'إجمالي الردود', color);
+    document.getElementById('or-list').innerHTML = entries.length ? entries.map(e => `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:13px 12px;border-bottom:1px solid #f3ece2">
+        <div style="min-width:0">
+          <div style="font-weight:800;font-size:14.5px">${esc(e.name)}</div>
+          ${e.phone ? `<div style="font-size:12px;color:#8E7A66;direction:ltr;text-align:right">${esc(e.phone)}</div>` : ''}
+          ${e.message ? `<div style="font-size:12.5px;color:#6b5a48;margin-top:4px">${esc(e.message)}</div>` : ''}
+        </div>
+        <div style="flex-shrink:0;text-align:left">
+          <span style="display:inline-block;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:800;${e.status === 'confirmed' ? 'background:#D1FAE5;color:#065F46' : 'background:#FEF3C7;color:#92400E'}">${e.status === 'confirmed' ? 'ستحضر' : 'اعتذرت'}</span>
+          <div style="font-size:10.5px;color:#a99;margin-top:5px">${new Date(e.created_at).toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'})}</div>
+        </div>
+      </div>`).join('') : '<div style="padding:40px;text-align:center;color:#8E7A66">ما وصلت ردود بعد</div>';
+  }
+  render(data.entries || []);
+
+  setInterval(async () => {
+    const { data: d2 } = await db.rpc('pub_open_report_get', { event_input: eventId });
+    if (d2 && d2.entries) render(d2.entries);
+  }, 30000);
 }
 
 async function showLivePage(eventId) {
