@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  R•Code — Edge Function لمعاينة الواتساب — النسخة 2
+//  R•Code — Edge Function لمعاينة الواتساب — النسخة 3
 //  كل دعوة تطلع بغلافها المخصّص (أو صورة الدعوة) بكرت واتساب
 //
 //  الأولوية:  غلاف المعاينة  ←  صورة الدعوة  ←  شعار الموقع
@@ -26,7 +26,24 @@ async function lookupImage(code, steps) {
     { headers: H }
   );
   steps.push(`استعلام الضيفة: HTTP ${gRes.status}`);
-  if (!gRes.ok) { steps.push('❌ القاعدة رفضت استعلام الضيفة'); return null; }
+  if (!gRes.ok) {
+    steps.push('❌ القاعدة رفضت استعلام الضيفة');
+    try {
+      const body = await gRes.text();
+      steps.push(`سبب الرفض من القاعدة: ${body.slice(0, 300)}`);
+    } catch (e) { /* تجاهل */ }
+    steps.push(`بصمة المفتاح المنشور: الطول ${SUPABASE_KEY.length} (الصحيح 208) | أوله ${SUPABASE_KEY.slice(0, 10)} | آخره ${SUPABASE_KEY.slice(-6)} (الصحيح BC3v8g)`);
+    // تجربة ثانية: بترويسة apikey فقط بدون Authorization
+    try {
+      const alt = await fetch(
+        `${SUPABASE_URL}/rest/v1/guests?qr_code=eq.${encodeURIComponent(code)}&select=event_id&limit=1`,
+        { headers: { 'apikey': SUPABASE_KEY } }
+      );
+      steps.push(`تجربة بطريقة مصادقة ثانية: HTTP ${alt.status}${alt.ok ? ' ✅ نجحت!' : ''}`);
+      if (!alt.ok) { try { steps.push(`ردّها: ${(await alt.text()).slice(0, 200)}`); } catch (e) { /* تجاهل */ } }
+    } catch (e) { steps.push(`تعذّرت التجربة الثانية: ${e.message}`); }
+    return null;
+  }
 
   const guests = await gRes.json();
   steps.push(`عدد النتائج: ${guests.length}`);
