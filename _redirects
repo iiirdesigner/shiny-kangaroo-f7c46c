@@ -9,6 +9,10 @@
 /r/*        /app.html?live=:splat      200
 /t/*        /app.html?thanks=:splat    200
 
+# ── الرابط الموحد: تأكيد حضور بدون باركود + تقريره ──
+/c/*        /app.html?open=:splat       200
+/or/*       /app.html?openreport=:splat 200
+
 # ── الصيغة القديمة — عشان الدعوات المُرسلة ما تنكسر ──
 /i/*        /app.html?rsvp=:splat      200
 
