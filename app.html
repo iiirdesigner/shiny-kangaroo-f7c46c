@@ -1440,7 +1440,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-17 · 44</span>
+    الإصدار <span style="font-weight:700">2026-07-17 · 45</span>
   </div>
 </div>
 
@@ -2612,12 +2612,12 @@ async function init() {
   // 🛟 شبكة أمان: لو الرابط النظيف /i/CODE وصل هنا بأي طريقة
   //    (ملف _redirects ناقص أو مضبوط غلط)، نقرأ الكود من المسار نفسه.
   //    كذا الدعوة تشتغل مهما صار.
-  const hasParam = params.get('rsvp') || params.get('scan') || params.get('live') || params.get('thanks');
+  const hasParam = params.get('rsvp') || params.get('scan') || params.get('live') || params.get('thanks') || params.get('open') || params.get('openreport');
   if (!hasParam) {
     const path = window.location.pathname;
-    const seg = path.match(/\/(i|m|r|t)\/([^/?#]+)/);
+    const seg = path.match(/\/(i|m|or|r|t|c)\/([^/?#]+)/);
     if (seg) {
-      const key = { i: 'rsvp', m: 'scan', r: 'live', t: 'thanks' }[seg[1]];
+      const key = { i: 'rsvp', m: 'scan', or: 'openreport', r: 'live', t: 'thanks', c: 'open' }[seg[1]];
       params.set(key, decodeURIComponent(seg[2]));
     } else {
       // الكود العاري:  rqr0.com/K7M2QXR9
