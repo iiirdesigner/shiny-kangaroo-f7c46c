@@ -1440,7 +1440,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-17 · 45</span>
+    الإصدار <span style="font-weight:700">2026-07-18 · 47</span>
   </div>
 </div>
 
@@ -1697,6 +1697,18 @@ function injectIcons(root=document) {
         </label>
       </div>
       <p style="font-size:11.5px;color:var(--text-light);margin-top:6px;line-height:1.6">📐 الأفضل مقاس عريض (مثل 1200×630). لو ما رفعتِ غلافاً، يظهر شعار الموقع.</p>
+    </div>
+
+    <!-- نصوص الرابط الموحد -->
+    <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
+      <label class="form-label" style="margin-bottom:4px"><span data-ic="check" data-ic-size="16"></span> نصوص الرابط الموحد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
+      <p style="font-size:11.5px;color:var(--text-light);margin:0 0 10px;line-height:1.6">تظهر لضيوف رابط التأكيد الموحد — لو تركتيها فاضية يظهر النص الأساسي المكتوب داخل كل خانة.</p>
+      <input type="text" id="event-open-intro" class="form-input" placeholder="يشرّفنا حضورك — أكّدي لنا من هنا" style="margin-bottom:10px" maxlength="120">
+      <input type="text" id="event-open-confirm" class="form-input" placeholder="في انتظارك — يسعدنا تشريفك" style="margin-bottom:10px" maxlength="160">
+      <input type="text" id="event-open-decline" class="form-input" placeholder="شكراً لإخبارنا — نتمنى لك دوام الصحة والعافية" maxlength="160">
+      <label class="form-label" style="margin:14px 0 4px">قائمة المسموح لهم بالرد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
+      <p style="font-size:11.5px;color:var(--text-light);margin:0 0 8px;line-height:1.6">اكتبي أسماء الضيوف أو أرقام جوالاتهم — كل واحد بسطر. لو عبّيتيها ما يقدر يأكد أحد غير المذكورين فيها (حتى لو انرسل له الرابط). اتركيها فاضية ليكون الرابط مفتوحاً للجميع.</p>
+      <textarea id="event-open-allowlist" class="form-input" rows="4" placeholder="نورة العتيبي&#10;0501234567&#10;سارة"></textarea>
     </div>
 
     <!-- شاشات المسح المخصصة -->
@@ -3307,6 +3319,10 @@ function openCreateEvent() {
   document.getElementById('event-thanks-msg').value = '';
   document.getElementById('event-thanks-title').value = '';
   document.getElementById('event-confirm-msg').value = '';
+  document.getElementById('event-open-intro').value = '';
+  document.getElementById('event-open-confirm').value = '';
+  document.getElementById('event-open-decline').value = '';
+  document.getElementById('event-open-allowlist').value = '';
   document.getElementById('event-decline-msg').value = '';
   document.getElementById('event-wa-msg').value = '';
   document.getElementById('event-location').value = '';
@@ -3344,6 +3360,10 @@ async function editEvent(id) {
   document.getElementById('event-thanks-msg').value = e.thanks_message || '';
   document.getElementById('event-thanks-title').value = e.thanks_title || '';
   document.getElementById('event-confirm-msg').value = e.confirm_message || '';
+  document.getElementById('event-open-intro').value = e.open_intro || '';
+  document.getElementById('event-open-confirm').value = e.open_confirm_msg || '';
+  document.getElementById('event-open-decline').value = e.open_decline_msg || '';
+  document.getElementById('event-open-allowlist').value = e.open_allowlist || '';
   document.getElementById('event-decline-msg').value = e.decline_message || '';
   document.getElementById('event-wa-msg').value = e.wa_message || '';
   document.getElementById('event-location').value = e.location || '';
@@ -3607,6 +3627,10 @@ async function saveEvent() {
   data.thanks_message = document.getElementById('event-thanks-msg').value || null;
   data.thanks_title = document.getElementById('event-thanks-title').value || null;
   data.confirm_message = document.getElementById('event-confirm-msg').value || null;
+  data.open_intro = document.getElementById('event-open-intro').value.trim() || null;
+  data.open_confirm_msg = document.getElementById('event-open-confirm').value.trim() || null;
+  data.open_decline_msg = document.getElementById('event-open-decline').value.trim() || null;
+  data.open_allowlist = document.getElementById('event-open-allowlist').value.trim() || null;
   data.decline_message = document.getElementById('event-decline-msg').value || null;
   data.wa_message = document.getElementById('event-wa-msg').value || null;
 
@@ -5423,7 +5447,7 @@ async function showOpenRsvpPage(eventId) {
       <div class="rsvp-card">
         ${ev.cover_image ? `<img src="${esc(ev.cover_image)}" style="width:100%;border-radius:16px;margin-bottom:22px;display:block" onerror="this.remove()">` : ''}
         <div class="rsvp-event-name">${esc(ev.name)}</div>
-        <div style="color:var(--text-light);font-size:14.5px;margin-bottom:22px">يشرّفنا حضورك — أكّدي لنا من هنا</div>
+        <div style="color:var(--text-light);font-size:14.5px;margin-bottom:22px">${esc(ev.open_intro || 'يشرّفنا حضورك — أكّدي لنا من هنا')}</div>
 
         <div id="open-form" style="text-align:right">
           <div class="form-group">
@@ -5454,6 +5478,7 @@ async function showOpenRsvpPage(eventId) {
     </div>`;
   injectIcons();
   window._openEventId = eventId;
+  window._openEv = ev;
 }
 
 let _openSubmitting = false;
@@ -5474,19 +5499,24 @@ async function submitOpenRsvp(status) {
   });
 
   _openSubmitting = false;
-  if (!ok) { err.textContent = 'صار خلل بسيط — جربي مرة ثانية'; err.style.display = 'block'; return; }
+  if (ok === 'not_listed') {
+    err.textContent = 'يبدو أن الاسم أو الرقم غير مسجّل بقائمة ضيوف المناسبة — تأكدي من كتابته كما هو عند صاحبة الدعوة 🤍';
+    err.style.display = 'block'; return;
+  }
+  if (!(ok === true || ok === 'ok')) { err.textContent = 'صار خلل بسيط — جربي مرة ثانية'; err.style.display = 'block'; return; }
 
   document.getElementById('open-form').style.display = 'none';
   const mark = document.getElementById('open-done-mark');
   const title = document.getElementById('open-done-title');
   const sub = document.getElementById('open-done-sub');
+  const evTexts = window._openEv || {};
   if (status === 'confirmed') {
     mark.innerHTML = IC.check; title.textContent = 'تم تأكيد حضورك';
-    sub.textContent = 'في انتظارك — يسعدنا تشريفك';
+    sub.textContent = evTexts.open_confirm_msg || 'في انتظارك — يسعدنا تشريفك';
   } else {
     mark.innerHTML = IC.heart || IC.check; mark.style.color = '#92400E'; title.style.color = '#92400E';
     title.textContent = 'وصلنا اعتذارك';
-    sub.textContent = 'شكراً لإخبارنا — نتمنى لك دوام الصحة والعافية';
+    sub.textContent = evTexts.open_decline_msg || 'شكراً لإخبارنا — نتمنى لك دوام الصحة والعافية';
   }
   document.getElementById('open-done').style.display = 'block';
   injectIcons();
