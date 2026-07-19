@@ -395,31 +395,38 @@
   /* بطاقة زجاجية حقيقية */
   .auth-card {
     position:relative; z-index:1;
-    background:rgba(255,255,255,.42) !important;
-    backdrop-filter:blur(28px) saturate(1.6) !important;
-    -webkit-backdrop-filter:blur(28px) saturate(1.6) !important;
-    border:1px solid rgba(255,255,255,.75) !important;
-    box-shadow:
-      0 30px 70px -28px rgba(61,46,34,.35),
-      0 0 0 1px rgba(255,255,255,.35) inset,
-      0 1px 0 rgba(255,255,255,.9) inset !important;
+    background:transparent !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    border:none !important;
+    box-shadow:none !important;
     animation:cardRise .8s cubic-bezier(.2,.8,.2,1);
   }
-  /* بريق علوي على حافة الزجاج */
-  .auth-card::before {
-    content:''; position:absolute; top:0; left:12%; right:12%; height:1px;
-    background:linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent);
-    border-radius:2px;
+  .auth-card::before { display:none; }
+
+  /* عناصر الدخول: زجاجية مضيئة مباشرة على الصفحة (بدون مربع) */
+  #auth-page .form-input {
+    background:rgba(255,255,255,.55);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.8);
+    box-shadow:0 10px 26px -14px rgba(61,46,34,.28), 0 1px 0 rgba(255,255,255,.9) inset;
+  }
+  #auth-page .form-input:focus {
+    border-color:rgba(198,154,78,.6);
+    box-shadow:0 12px 30px -14px rgba(61,46,34,.38), 0 0 0 3px rgba(198,154,78,.16), 0 1px 0 rgba(255,255,255,.95) inset;
   }
   @keyframes cardRise { from { opacity:0; transform:translateY(28px) scale(.97); } to { opacity:1; transform:none; } }
   
   /* تبويبات صفحة الدخول — بمؤشر منزلق */
   .auth-tabs {
     position:relative; display:flex; gap:0;
-    background:rgba(61,46,34,.10);
+    background:rgba(255,255,255,.4);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
     padding:5px; border-radius:16px;
-    border:1px solid rgba(255,255,255,.35);
-    box-shadow:0 2px 8px rgba(61,46,34,.08) inset;
+    border:1px solid rgba(255,255,255,.75);
+    box-shadow:0 10px 26px -14px rgba(61,46,34,.25), 0 1px 0 rgba(255,255,255,.85) inset;
     overflow:hidden;
   }
   /* المؤشر المنزلق */
@@ -1180,14 +1187,15 @@ function injectIcons(root=document) {
   .rsvp-buttons { display:flex; gap:12px; margin-top:26px; }
   .rsvp-buttons .btn { min-height:52px; border-radius:16px; font-size:16px; font-weight:800; }
 
-  #rsvp-page .btn-accept {
-    background:linear-gradient(135deg, #3D2E22, #5A4433) !important;
-    color:#F0DBA8 !important; border:1px solid rgba(212,168,83,.5) !important;
-    box-shadow:0 16px 34px -14px rgba(61,46,34,.7), 0 1px 0 rgba(255,255,255,.16) inset !important;
+  #rsvp-page .btn-accept, #scan-overlay .btn-accept {
+    background:var(--rose) !important;
+    background:linear-gradient(135deg, var(--rose), color-mix(in srgb, var(--rose) 58%, #221510)) !important;
+    color:#fff !important; border:1px solid rgba(255,255,255,.35) !important;
+    box-shadow:0 16px 34px -14px color-mix(in srgb, var(--rose) 65%, #000), 0 1px 0 rgba(255,255,255,.22) inset !important;
     transition:transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease;
   }
-  #rsvp-page .btn-accept:hover  { transform:translateY(-3px); box-shadow:0 22px 44px -14px rgba(61,46,34,.8) !important; }
-  #rsvp-page .btn-accept:active { transform:translateY(0) scale(.97); }
+  #rsvp-page .btn-accept:hover, #scan-overlay .btn-accept:hover  { transform:translateY(-3px); box-shadow:0 22px 44px -14px color-mix(in srgb, var(--rose) 75%, #000) !important; }
+  #rsvp-page .btn-accept:active, #scan-overlay .btn-accept:active { transform:translateY(0) scale(.97); }
 
   #rsvp-page .btn-decline {
     background:transparent !important; color:#8E7A66 !important;
@@ -1440,7 +1448,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-18 · 47</span>
+    الإصدار <span style="font-weight:700">2026-07-19 · 48</span>
   </div>
 </div>
 
@@ -4681,6 +4689,7 @@ async function showRsvpPage(qrCode) {
   }
 
   const event = guest.events;
+  if (event?.color) document.documentElement.style.setProperty('--rose', event.color);
   if (event?.cover_image) {
     const card = document.querySelector('.rsvp-card');
     const img = document.createElement('img');
@@ -5327,6 +5336,7 @@ function buildScanCard(result, ev, opts = {}) {
 
 // شاشة المشرفة (رابط مستقل) — سلوكها كما هو: تستبدل الصفحة كاملة
 function renderGateResult(result, ev, opts = {}) {
+  if (ev && ev.color) document.documentElement.style.setProperty('--rose', ev.color);
   const { cardHtml, showCd } = buildScanCard(result, ev, opts);
   document.body.innerHTML = `
     <div id="rsvp-page" style="display:flex">${cardHtml}</div>`;
@@ -5336,6 +5346,7 @@ function renderGateResult(result, ev, opts = {}) {
 
 // الماسح الداخلي — نفس الشاشة بالضبط لكن كطبقة فوق لوحة التحكم
 function showScanOverlay(result, ev) {
+  if (ev && ev.color) document.documentElement.style.setProperty('--rose', ev.color);
   closeScanOverlay(false);
   const { cardHtml } = buildScanCard(result, ev, { rescan: true, rescanAction: 'closeScanOverlay()' });
   const ov = document.createElement('div');
