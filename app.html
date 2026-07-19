@@ -1448,7 +1448,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-20 · 54</span>
+    الإصدار <span style="font-weight:700">2026-07-20 · 55</span>
   </div>
 </div>
 
@@ -5546,7 +5546,7 @@ async function showOpenRsvpPage(eventId) {
             <button class="btn btn-decline" onclick="submitOpenRsvp('declined')"><span data-ic="x" data-ic-size="16"></span> أعتذر</button>
             <button class="btn btn-accept" onclick="submitOpenRsvp('confirmed')"><span data-ic="check" data-ic-size="16"></span> سأحضر</button>
           </div>
-          <div id="open-err" style="display:none;margin-top:12px;color:var(--error);font-weight:700;font-size:13.5px;text-align:center"></div>
+          <div id="open-err" style="display:none;margin-top:14px;padding:12px 14px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;color:#B91C1C;font-weight:700;font-size:13px;line-height:1.7;text-align:center"></div>
         </div>
 
         <div id="open-done" style="display:none;padding:26px 10px 6px">
@@ -5580,7 +5580,7 @@ async function submitOpenRsvp(status) {
 
   _openSubmitting = false;
   if (ok === 'not_listed') {
-    err.textContent = 'يبدو أن الاسم أو الرقم غير مسجّل بقائمة ضيوف المناسبة — تأكدي من كتابته كما هو عند صاحبة الدعوة';
+    err.innerHTML = 'الاسم أو الرقم غير مسجّل في قائمة ضيوف المناسبة.<br>تأكدي من كتابته كما هو عند صاحبة الدعوة.';
     err.style.display = 'block'; return;
   }
   if (!(ok === true || ok === 'ok')) { err.textContent = 'صار خلل بسيط — جربي مرة ثانية'; err.style.display = 'block'; return; }
