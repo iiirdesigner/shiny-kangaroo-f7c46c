@@ -1448,7 +1448,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-19 · 49</span>
+    الإصدار <span style="font-weight:700">2026-07-20 · 52</span>
   </div>
 </div>
 
@@ -1881,7 +1881,6 @@ function injectIcons(root=document) {
               <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
               <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
               <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
-              <button class="btn btn-secondary" onclick="copyThanksLink()" style="padding:13px 10px;font-size:13.5px" data-ic="flower">صفحة الشكر</button>
             </div>
             <!-- بحث وفلترة -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -2171,7 +2170,7 @@ function injectIcons(root=document) {
           </div>
 
           <div style="margin-top:16px;display:flex;gap:10px">
-            <button class="btn btn-primary" style="flex:1" onclick="startScanner()"><span data-ic="camera" data-ic-size="17"></span> تشغيل الكاميرا</button>
+            <button class="btn btn-primary" id="scan-cam-btn" style="flex:1" onclick="startScanner()"><span data-ic="camera" data-ic-size="17"></span> تشغيل الكاميرا</button>
             <button class="btn btn-secondary" style="flex:1" onclick="stopScanner()">إيقاف</button>
           </div>
 
@@ -2895,9 +2894,18 @@ const ADMIN_ONLY_PAGES = ['users'];
 
 // لون المناسبة في الماسح: يجي مع الاختيار ويروح مع إلغائه أو الخروج من الصفحة
 function applyScannerColor() {
+  // اللون يلمس زر الكاميرا فقط — باقي الموقع ما يتأثر أبداً
   const sel = document.getElementById('scanner-event-select');
   const c = sel?.selectedOptions?.[0]?.dataset?.color;
-  document.documentElement.style.setProperty('--rose', c || window._siteRose || '#C4956A');
+  const btn = document.getElementById('scan-cam-btn');
+  if (!btn) return;
+  if (c) {
+    btn.style.background = `linear-gradient(135deg, ${c}, ${c}CC)`;
+    btn.style.boxShadow = `0 8px 20px -8px ${c}AA`;
+  } else {
+    btn.style.background = '';
+    btn.style.boxShadow = '';
+  }
 }
 function resetRoseToSite() {
   document.documentElement.style.setProperty('--rose', window._siteRose || '#C4956A');
@@ -2911,7 +2919,8 @@ function showPage(page) {
     page = 'dashboard';
   }
   _currentPage = page;
-  if (page === 'scanner') { applyScannerColor(); } else { resetRoseToSite(); }
+  resetRoseToSite();
+  if (page === 'scanner') applyScannerColor();
   setTimeout(injectIcons, 30);
   pulseLogo();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -4692,6 +4701,7 @@ async function showRsvpPage(qrCode) {
   document.getElementById('rsvp-page').style.display = 'flex';
 
   const { data: guest } = await db.rpc('pub_rsvp_get', { qr_input: qrCode });
+  window._rsvpQr = qrCode;
 
   if (!guest) {
     document.getElementById('rsvp-event-name').textContent = 'دعوة غير صالحة';
@@ -4784,12 +4794,14 @@ async function submitRsvp(status) {
     showRsvpStatus(window._rsvpDeclineMsg || 'شكراً لإخبارنا\nنتمنى لك دوام الصحة والعافية', '#FEF3C7', '#92400E', 'heart');
     document.getElementById('rsvp-actions').style.display = 'none';
     document.getElementById('rsvp-decline-form').style.display = 'none';
+    showInlineThanks();
   }
 }
 
 function showRsvpConfirmed(guest, qrCode) {
   document.getElementById('rsvp-actions').style.display = 'none';
   showRsvpStatus(window._rsvpConfirmMsg || 'تم تأكيد حضورك! في انتظارك', '#ECFDF5', '#065F46', 'check');
+  showInlineThanks();
 
   const gateUrl = qrCode;
   document.getElementById('rsvp-qr').style.display = 'block';
@@ -5328,7 +5340,7 @@ function buildScanCard(result, ev, opts = {}) {
   const cdHtml = showCd ? '<div id="rsvp-countdown" style="display:flex;justify-content:center;gap:10px;margin-top:22px"></div>' : '';
 
   const rescanHtml = opts.rescan
-    ? `<button onclick="${opts.rescanAction || 'location.reload()'}" class="btn btn-accept" style="width:100%;margin-top:8px"><span data-ic="scan" data-ic-size="17"></span> مسح التالي</button>`
+    ? `<button onclick="${opts.rescanAction || 'location.reload()'}" class="btn btn-accept" style="width:100%;margin-top:8px;background:linear-gradient(135deg, ${color}, ${color}CC);color:#fff;border:1px solid rgba(255,255,255,.35)"><span data-ic="scan" data-ic-size="17"></span> مسح التالي</button>`
     : '';
 
   // نفس تصميم صفحة الدعوة بالضبط — هوية واحدة بكل الصفحات
@@ -5357,7 +5369,6 @@ function renderGateResult(result, ev, opts = {}) {
 
 // الماسح الداخلي — نفس الشاشة بالضبط لكن كطبقة فوق لوحة التحكم
 function showScanOverlay(result, ev) {
-  if (ev && ev.color) document.documentElement.style.setProperty('--rose', ev.color);
   closeScanOverlay(false);
   const { cardHtml } = buildScanCard(result, ev, { rescan: true, rescanAction: 'closeScanOverlay()' });
   const ov = document.createElement('div');
@@ -5437,6 +5448,52 @@ async function showThanksPage(eventId) {
   injectIcons();
 }
 
+
+// الشكر يظهر مع التأكيد/الاعتذار مباشرة — بدون رابط منفصل
+// (يجيب المحتوى بكود الضيفة عبر دالة آمنة — ما نكشف رقم المناسبة)
+async function showInlineThanks() {
+  try {
+    const { data: ev } = await db.rpc('pub_thanks_by_qr', { qr_input: window._rsvpQr });
+    if (!ev) return;
+    const card = document.querySelector('.rsvp-card');
+    if (!card || document.getElementById('inline-thanks')) return;
+
+    const customMsg = ev.thanks_message || 'وجودكم أسعدنا وأضاف لفرحتنا الكثير';
+    const interactive = (ev.thanks_mode || 'interactive') === 'interactive';
+
+    const box = document.createElement('div');
+    box.id = 'inline-thanks';
+    box.style.cssText = 'margin-top:24px;padding-top:22px;border-top:1px dashed rgba(212,168,83,.45);text-align:center;animation:cardIn .5s ease';
+    box.innerHTML = `
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--text);margin-bottom:6px">${esc(ev.thanks_title || 'شكراً لتشريفكم')}</div>
+      <div style="color:var(--text-light);font-size:14px;line-height:1.8;white-space:pre-line">${esc(customMsg)}</div>
+      ${interactive ? `
+      <div id="wish-form" style="margin-top:18px">
+        <input type="text" id="wish-name" placeholder="اسمك (اختياري)" class="thanks-input">
+        <textarea id="wish-msg" rows="2" placeholder="اكتبي تهنئتك أو دعوتك الطيبة..." class="thanks-input"></textarea>
+        <button onclick="submitWishByQr()" class="btn btn-accept" style="width:100%;margin-top:4px">
+          <span data-ic="mail" data-ic-size="16"></span> إرسال التهنئة
+        </button>
+      </div>
+      <div id="wish-done" style="display:none;margin-top:18px;padding:18px;border-radius:16px;background:linear-gradient(180deg,#FBF3E7,#F5E9D6);border:1px solid rgba(212,168,83,.34);color:#7A5E33;font-weight:800">
+        <span data-ic="check" data-ic-size="18"></span> وصلت تهنئتك — شكراً لك
+      </div>` : ''}`;
+    card.appendChild(box);
+    injectIcons(box);
+  } catch (e) { /* الشكر إضافة جمالية — ما نكسر التأكيد لو تعثرت */ }
+}
+
+async function submitWishByQr() {
+  const msg = document.getElementById('wish-msg').value.trim();
+  if (!msg) return;
+  await db.rpc('pub_wish_add_by_qr', {
+    qr_input: window._rsvpQr,
+    name_input: document.getElementById('wish-name').value.trim() || null,
+    msg_input: msg
+  });
+  document.getElementById('wish-form').style.display = 'none';
+  document.getElementById('wish-done').style.display = 'block';
+}
 
 async function submitWish(eventId) {
   const msg = document.getElementById('wish-msg').value.trim();
@@ -5523,7 +5580,7 @@ async function submitOpenRsvp(status) {
 
   _openSubmitting = false;
   if (ok === 'not_listed') {
-    err.textContent = 'يبدو أن الاسم أو الرقم غير مسجّل بقائمة ضيوف المناسبة — تأكدي من كتابته كما هو عند صاحبة الدعوة 🤍';
+    err.textContent = 'يبدو أن الاسم أو الرقم غير مسجّل بقائمة ضيوف المناسبة — تأكدي من كتابته كما هو عند صاحبة الدعوة';
     err.style.display = 'block'; return;
   }
   if (!(ok === true || ok === 'ok')) { err.textContent = 'صار خلل بسيط — جربي مرة ثانية'; err.style.display = 'block'; return; }
