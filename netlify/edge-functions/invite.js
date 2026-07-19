@@ -1,67 +1,87 @@
 // ═══════════════════════════════════════════════════════════════
-//  R•Code — Edge Function لمعاينة الواتساب — النسخة 4
-//  كل دعوة تطلع بغلافها المخصّص (أو صورة الدعوة) بكرت واتساب
+//  R•Code — Edge Function لمعاينة الواتساب — النسخة 5
+//  كل الروابط تطلع بغلافها المخصّص في كرت واتساب:
+//   • دعوة الضيفة       rqr0.com/CODE   (أو /i/CODE)
+//   • الرابط الموحد     rqr0.com/c/EVENT_ID
+//   • تقرير الموحد      rqr0.com/or/EVENT_ID
 //
 //  الأولوية:  غلاف المعاينة  ←  صورة الدعوة  ←  شعار الموقع
-//
-//  الجديد في النسخة 4:
-//  • القراءة عبر الدالة الآمنة pub_preview_image (ملف preview-rpc.sql)
-//    بدل قراءة الجداول مباشرة — الجداول مقفولة عن الزوار وهذا صح.
-//  • استعلام واحد بدل اثنين — أسرع للمعاينة.
-//  • صفحة التشخيص باقية: rqr0.com/الكود?debug=og
+//  الجديد في 5: يدعم روابط c/ و or/ برقم المناسبة عبر دالة آمنة.
 // ═══════════════════════════════════════════════════════════════
 
 const SUPABASE_URL = 'https://lutfjdsuinaqswvgkmet.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1dGZqZHN1aW5hcXN3dmdrbWV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTYyMjQsImV4cCI6MjA5ODgzMjIyNH0.roY4YGSmYtsOC6TFtmgRZ9velYJzNQasIomITBC3v8g';
 
-// يجيب رابط صورة المعاينة عبر الدالة الآمنة — ويسجّل كل خطوة في steps
-async function lookupImage(code, steps) {
+const AUTH = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'content-type': 'application/json',
+};
+
+// صورة معاينة بكود الضيفة (الدعوة العادية)
+async function imageByCode(code, steps) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pub_preview_image`, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ code_input: code }),
+    method: 'POST', headers: AUTH, body: JSON.stringify({ code_input: code }),
   });
-  steps.push(`استعلام الدالة الآمنة: HTTP ${res.status}`);
+  steps.push(`دعوة الضيفة: HTTP ${res.status}`);
+  if (!res.ok) return null;
+  return await res.json();
+}
 
+// صورة معاينة برقم المناسبة (الرابط الموحد وتقريره)
+async function imageByEvent(eventId, steps) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pub_preview_by_event`, {
+    method: 'POST', headers: AUTH, body: JSON.stringify({ event_input: eventId }),
+  });
+  steps.push(`الرابط الموحد: HTTP ${res.status}`);
   if (!res.ok) {
-    try { steps.push(`سبب الرفض: ${(await res.text()).slice(0, 300)}`); } catch (e) { /* تجاهل */ }
-    steps.push('❌ لو السبب يذكر Could not find the function — معناه ملف preview-rpc.sql ما تشغّل بعد في Supabase');
+    try { steps.push(`ردّها: ${(await res.text()).slice(0, 200)}`); } catch (e) {}
+    steps.push('❌ لو السبب Could not find the function — شغّلي معاينة-الرابط-الموحد.sql');
     return null;
   }
+  return await res.json();
+}
 
-  const image = await res.json(); // نص الرابط أو null
-  if (!image) { steps.push('❌ ما فيه صورة لهذا الكود (الكود غلط، أو المناسبة بدون غلاف وبدون صورة دعوة) — بتطلع الافتراضية'); return null; }
-  if (typeof image === 'string' && image.startsWith('data:')) {
-    steps.push('⚠️ الصورة محفوظة كنص مضغوط (data:) مو رابط — الواتساب ما يقبلها، بتطلع الافتراضية');
-    return null;
+// نحلّل المسار: نوعه والمعرّف
+function parsePath(pathname) {
+  // الرابط الموحد وتقريره: /c/UUID أو /or/UUID
+  let m = pathname.match(/^\/(c|or)\/([0-9a-fA-F-]{20,40})\/?$/);
+  if (m) return { kind: 'event', id: m[2] };
+  // دعوة الضيفة: /CODE أو /i/CODE
+  m = pathname.match(/^\/(?:i\/)?([A-Za-z0-9-]{6,40})\/?$/);
+  if (m) return { kind: 'code', id: m[1] };
+  return { kind: null, id: null };
+}
+
+async function resolveImage(kind, id, steps) {
+  const raw = kind === 'event' ? await imageByEvent(id, steps) : await imageByCode(id, steps);
+  if (!raw) { steps.push('— ما فيه صورة، بتطلع الافتراضية'); return null; }
+  if (typeof raw === 'string' && raw.startsWith('data:')) {
+    steps.push('⚠️ الصورة data: مو رابط — الواتساب ما يقبلها'); return null;
   }
-  steps.push(`✅ الصورة النهائية: ${String(image).slice(0, 90)}…`);
-  return image;
+  steps.push(`✅ الصورة النهائية: ${String(raw).slice(0, 90)}…`);
+  return raw;
 }
 
 export default async (request, context) => {
   const url = new URL(request.url);
-  const m = url.pathname.match(/^\/(?:i\/)?([A-Za-z0-9-]{6,40})\/?$/);
-  const code = m ? m[1] : null;
+  const { kind, id } = parsePath(url.pathname);
 
-  // ── صفحة التشخيص الذاتي: /الكود?debug=og ──
-  if (code && url.searchParams.get('debug') === 'og') {
-    const steps = [`الدالة تشتغل ✅ — النسخة 4`, `الكود الملتقط: ${code}`];
-    try { await lookupImage(code, steps); }
-    catch (e) { steps.push(`❌ خطأ غير متوقع: ${e.message}`); }
+  // ── تشخيص ذاتي: أضيفي ?debug=og لأي رابط ──
+  if (kind && url.searchParams.get('debug') === 'og') {
+    const steps = [`الدالة تشتغل ✅ — النسخة 5`, `النوع: ${kind} | المعرّف: ${id}`];
+    try { await resolveImage(kind, id, steps); }
+    catch (e) { steps.push(`❌ خطأ: ${e.message}`); }
     return new Response(steps.join('\n'), {
-      status: 200,
-      headers: { 'content-type': 'text/plain; charset=utf-8' },
+      status: 200, headers: { 'content-type': 'text/plain; charset=utf-8' },
     });
   }
 
   const response = await context.next();
 
-  if (!code || /\.(html?|png|jpe?g|svg|ico|css|js|txt|json|xml|webmanifest)$/i.test(code)) {
+  // تجاهل الملفات الحقيقية
+  const last = url.pathname.split('/').pop() || '';
+  if (!kind || /\.(html?|png|jpe?g|svg|ico|css|js|txt|json|xml|webmanifest)$/i.test(last)) {
     return response;
   }
   const ctype = response.headers.get('content-type') || '';
@@ -72,15 +92,12 @@ export default async (request, context) => {
   catch (e) { return response; }
 
   try {
-    const image = await lookupImage(code, []);
-    // نبدّل *الصورة فقط* بالغلاف — العنوان والوصف يبقون زي ما هم
+    const image = await resolveImage(kind, id, []);
     if (image) {
       html = injectMeta(html, 'og:image', image, 'property');
       html = injectMeta(html, 'twitter:image', image, 'name');
     }
-  } catch (e) {
-    // أي خطأ → الصفحة الأصلية بالصورة الافتراضية (ما نكسر شي)
-  }
+  } catch (e) { /* الصفحة الأصلية بالافتراضية — ما نكسر شي */ }
 
   const headers = new Headers(response.headers);
   headers.delete('content-length');
