@@ -1448,7 +1448,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-20 · 55</span>
+    الإصدار <span style="font-weight:700">2026-07-20 · 56</span>
   </div>
 </div>
 
@@ -5580,7 +5580,7 @@ async function submitOpenRsvp(status) {
 
   _openSubmitting = false;
   if (ok === 'not_listed') {
-    err.innerHTML = 'الاسم أو الرقم غير مسجّل في قائمة ضيوف المناسبة.<br>تأكدي من كتابته كما هو عند صاحبة الدعوة.';
+    err.textContent = 'الاسم أو الرقم غير مسجّل في قائمة ضيوف المناسبة.';
     err.style.display = 'block'; return;
   }
   if (!(ok === true || ok === 'ok')) { err.textContent = 'صار خلل بسيط — جربي مرة ثانية'; err.style.display = 'block'; return; }
