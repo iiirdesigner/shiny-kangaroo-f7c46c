@@ -1,0 +1,14 @@
+## منع كاش صفحات HTML — كل زائر يجيب آخر نسخة تلقائياً
+## (الصور والملفات الثابتة تبقى مكاشة للسرعة — بس صفحات HTML لا)
+
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/app.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
