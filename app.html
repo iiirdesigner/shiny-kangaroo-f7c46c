@@ -1451,7 +1451,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-20 · 60</span>
+    الإصدار <span style="font-weight:700">2026-07-20 · 61</span>
   </div>
 </div>
 
@@ -5106,18 +5106,30 @@ async function dzGenerateAll() {
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
     const fname = 'دعوات-جاهزة.zip';
 
-    // على الجوال: التحميل التلقائي كثير يُحجب — نستخدم مشاركة الملف (تشتغل للكل)
     const zipFile = new File([zipBlob], fname, { type: 'application/zip' });
+
+    // على الجوال: المشاركة لازم تكون بضغطة مستخدم مباشرة —
+    // فنجهّز الملف ونعرض زر، والعميلة تضغطه فتفتح المشاركة مضمونة
     if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
-      try {
-        await navigator.share({ files: [zipFile], title: 'دعوات جاهزة' });
-        progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! اختاري "حفظ في الملفات" أو أرسليه واتساب`;
-        setTimeout(() => { progress.style.display = 'none'; }, 4000);
-        return;
-      } catch (shareErr) { /* لو ألغت المشاركة، نكمل للتحميل العادي تحت */ }
+      progress.innerHTML = '';
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.style.cssText = 'width:100%;padding:15px;font-size:15px;margin-top:4px';
+      btn.innerHTML = `<span data-ic="save" data-ic-size="16"></span> جاهز! اضغطي لحفظ ${dzGuests.length} دعوة`;
+      btn.onclick = async () => {
+        try {
+          await navigator.share({ files: [zipFile], title: 'دعوات جاهزة' });
+          progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! اختاري "حفظ في الملفات" أو أرسليه واتساب`;
+          injectIcons(progress);
+          setTimeout(() => { progress.style.display = 'none'; }, 5000);
+        } catch (e2) { /* لو سكّرت المشاركة، الزر يظل موجود تضغطه متى ما تبي */ }
+      };
+      progress.appendChild(btn);
+      injectIcons(progress);
+      return;   // الزر ظاهر — ما نخفي المنطقة
     }
 
-    // كمبيوتر (أو متصفح يدعم التحميل): تنزيل مباشر
+    // كمبيوتر: تنزيل مباشر
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement('a');
     a.href = url;
@@ -5127,10 +5139,11 @@ async function dzGenerateAll() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم تحميل ${dzGuests.length} دعوة — شوفي مجلد التنزيلات`;
+    setTimeout(() => { progress.style.display = 'none'; }, 5000);
   } catch (e) {
     progress.textContent = 'تعذّر تجهيز الملف — جربي عدد أقل أو من كمبيوتر.';
+    setTimeout(() => { progress.style.display = 'none'; }, 5000);
   }
-  setTimeout(() => { progress.style.display = 'none'; }, 5000);
 }
 
 function dzPreset(type) {
