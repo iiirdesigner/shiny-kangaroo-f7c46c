@@ -30,7 +30,7 @@
     stroke-linecap:round; stroke-linejoin:round;
     filter: drop-shadow(0 4px 12px rgba(74,49,32,.28));
     stroke-dasharray:1000; stroke-dashoffset:1000;
-    animation: draw 2.8s cubic-bezier(.45,.12,.35,1) 0s forwards;
+    animation: draw 3s cubic-bezier(.4,.1,.35,1) 0s forwards;
   }
   @keyframes draw { to { stroke-dashoffset:0; } }
 
@@ -38,12 +38,12 @@
   #fill {
     fill:url(#grad); opacity:0;
     filter: drop-shadow(0 8px 20px rgba(61,46,34,.26));
-    animation: fillIn 1s ease 2.5s forwards;
+    animation: fillIn 1s ease 3s forwards;
   }
   @keyframes fillIn { to { opacity:1; } }
 
   /* نقاط التحميل — تظهر وهو ماشي ينرسم */
-  .dots { display:flex; gap:11px; opacity:0; animation: dotsIn .7s ease 1.1s forwards; }
+  .dots { display:flex; gap:11px; opacity:0; animation: dotsIn .8s ease 1.2s forwards; }
   .dots span {
     width:9px; height:9px; border-radius:50%;
     background:linear-gradient(135deg,#C69A4E,#8B5E3C);
@@ -87,7 +87,7 @@
         if (reduced) { window.location.replace('app.html'); return; }
         document.body.classList.add('leaving');
         setTimeout(function () { window.location.replace('app.html'); }, 520);
-      }, reduced ? 800 : 4200);
+      }, reduced ? 800 : 4600);
     })();
   </script>
 </body>
