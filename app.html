@@ -1448,7 +1448,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-20 · 57</span>
+    الإصدار <span style="font-weight:700">2026-07-20 · 58</span>
   </div>
 </div>
 
@@ -1873,7 +1873,7 @@ function injectIcons(root=document) {
             <!-- أدوات رئيسية -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:8px;margin-bottom:14px" id="guest-tools-grid">
               <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
-              <button class="btn btn-secondary" onclick="downloadAllQR()" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
+              <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
               <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
               <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
               <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
@@ -4316,10 +4316,11 @@ async function bulkAddGuests() {
 }
 
 // ===== QR ZIP DOWNLOAD =====
-async function downloadAllQR() {
+async function downloadAllQR(clickEv) {
   if (!allGuests.length) return alert('لا يوجد ضيوف');
+  const btn = (clickEv && clickEv.target) || null;
+  const orig = btn ? btn.innerHTML : '';
 
-  // Get event QR color
   const { data: ev } = await db.from('events').select('qr_color, name').eq('id', currentEventId).single();
   const qrColor = ev?.qr_color || '#2C1810';
   const evName = ev?.name || 'المناسبة';
@@ -4327,47 +4328,57 @@ async function downloadAllQR() {
   const zip = new JSZip();
   const folder = zip.folder('باركودات - ' + evName);
 
-  for (const g of allGuests) {
-    const rsvpUrl = g.qr_code;
-    // Generate QR with transparent background using qrcode-generator
-    const qr = qrcode(0, 'M');
-    qr.addData(rsvpUrl);
-    qr.make();
+  // نعيد استخدام كانفس واحد لكل الباركودات — يوفّر الذاكرة بشكل كبير
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const total = allGuests.length;
 
-    const cellSize = 12;
-    const margin = 4;
-    const size = qr.getModuleCount() * cellSize + margin * 2 * cellSize;
+  try {
+    for (let i = 0; i < total; i++) {
+      const g = allGuests[i];
+      const qr = qrcode(0, 'M');
+      qr.addData(g.qr_code);
+      qr.make();
 
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size + 60; // room for name
-    const ctx = canvas.getContext('2d');
-    // TRANSPARENT background - no fill
+      const mods = qr.getModuleCount();
+      const cellSize = 10, margin = 4;
+      const size = mods * cellSize + margin * 2 * cellSize;
+      canvas.width = size;
+      canvas.height = size + 56;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = qrColor;
+      for (let r = 0; r < mods; r++)
+        for (let c = 0; c < mods; c++)
+          if (qr.isDark(r, c))
+            ctx.fillRect(c * cellSize + margin * cellSize, r * cellSize + margin * cellSize, cellSize, cellSize);
+      ctx.fillStyle = qrColor;
+      ctx.font = 'bold 26px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(g.name, size / 2, size + 38);
 
-    ctx.fillStyle = qrColor;
-    for (let r = 0; r < qr.getModuleCount(); r++) {
-      for (let c = 0; c < qr.getModuleCount(); c++) {
-        if (qr.isDark(r, c)) {
-          ctx.fillRect(c * cellSize + margin * cellSize, r * cellSize + margin * cellSize, cellSize, cellSize);
-        }
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      folder.file(`${g.name}.png`, blob);
+
+      if (btn && (i % 15 === 0 || i === total - 1)) {
+        btn.innerHTML = `جاري التجهيز ${i + 1}/${total}...`;
+        await new Promise(r => setTimeout(r, 0));  // نفسّح للمتصفح يتنفّس
       }
     }
 
-    // Guest name below QR
-    ctx.fillStyle = qrColor;
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(g.name, size / 2, size + 40);
-
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    folder.file(`${g.name}.png`, blob);
+    if (btn) btn.innerHTML = 'جاري ضغط الملف...';
+    // STORE بدل الضغط الثقيل — أخف بكثير على الذاكرة والمعالج
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `باركودات-${evName}.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) {
+    alert('تعذّر تجهيز الملف — جربي عدد أقل أو من كمبيوتر. (' + (e.message || e) + ')');
+  } finally {
+    if (btn) btn.innerHTML = orig;
   }
-
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(zipBlob);
-  a.download = `باركودات-${evName}.zip`;
-  a.click();
 }
 
 // ===== WHATSAPP BULK =====
@@ -5894,35 +5905,46 @@ async function downloadBulkQR(clickEv) {
   const { data: ev } = await db.from('events').select('qr_color, name').eq('id', currentEventId).single();
   const qrColor = ev?.qr_color || '#2C1810';
 
-  const tmp = document.createElement('div');
-  tmp.style.cssText = 'position:absolute;left:-9999px';
-  document.body.appendChild(tmp);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const total = _bulkQRGuests.length;
 
-  let done = 0;
-  for (const g of _bulkQRGuests) {
-    tmp.innerHTML = '';
-    const gateUrl = g.qr_code;
-    new QRCode(tmp, { text: gateUrl, width: 500, height: 500, colorDark: qrColor, colorLight: '#ffffff' });
-    await new Promise(r => setTimeout(r, 25));
-    const canvas = tmp.querySelector('canvas');
-    if (canvas) {
+  try {
+    for (let i = 0; i < total; i++) {
+      const g = _bulkQRGuests[i];
+      const qr = qrcode(0, 'M');
+      qr.addData(g.qr_code);
+      qr.make();
+      const mods = qr.getModuleCount();
+      const cellSize = 12, margin = 4;
+      const size = mods * cellSize + margin * 2 * cellSize;
+      canvas.width = size; canvas.height = size;
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = qrColor;
+      for (let r = 0; r < mods; r++)
+        for (let c = 0; c < mods; c++)
+          if (qr.isDark(r, c))
+            ctx.fillRect(c * cellSize + margin * cellSize, r * cellSize + margin * cellSize, cellSize, cellSize);
       const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
       zip.file(`${g.name}.png`, blob);
+      if (btn && (i % 15 === 0 || i === total - 1)) {
+        btn.textContent = `جاري التجهيز ${i + 1}/${total}...`;
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
-    done++;
-    if (btn && done % 20 === 0) btn.textContent = `جاري التجهيز ${done}/${_bulkQRGuests.length}...`;
+    if (btn) btn.textContent = 'جاري ضغط الملف...';
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `باركودات-${ev?.name || 'المناسبة'}.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) {
+    alert('تعذّر تجهيز الملف — جربي عدد أقل أو من كمبيوتر. (' + (e.message || e) + ')');
+  } finally {
+    if (btn) btn.textContent = origText || 'تحميل الأكواد (ZIP)';
   }
-  document.body.removeChild(tmp);
-
-  if (btn) btn.textContent = 'جاري ضغط الملف...';
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `باركودات-${ev?.name || 'المناسبة'}.zip`;
-  a.click();
-  URL.revokeObjectURL(url);
-  if (btn) btn.textContent = origText;
 }
 
 // ===== QUICK SEND MODE =====
