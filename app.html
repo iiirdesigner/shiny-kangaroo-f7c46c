@@ -5093,16 +5093,23 @@ async function dzGenerateAll() {
     dzRenderTo(ctx, W, H, g.name, qrText);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
     zip.file(`${g.name}.png`, blob);
-    await new Promise(r => setTimeout(r, 10)); // let UI breathe
+    if (i % 8 === 0) await new Promise(r => setTimeout(r, 0)); // نفس للمتصفح
   }
 
-  progress.textContent = 'جاري ضغط الملف...';
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(zipBlob);
-  a.download = 'دعوات-جاهزة.zip';
-  a.click();
-  progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! ${dzGuests.length} دعوة جاهزة`;
+  try {
+    progress.textContent = 'جاري ضغط الملف...';
+    // STORE = ضغط خفيف يمنع انهيار الجوال مع الأعداد الكبيرة
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'دعوات-جاهزة.zip';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! ${dzGuests.length} دعوة جاهزة`;
+  } catch (e) {
+    progress.textContent = 'تعذّر تجهيز الملف — جربي عدد أقل أو من كمبيوتر.';
+  }
   setTimeout(() => { progress.style.display = 'none'; }, 4000);
 }
 
