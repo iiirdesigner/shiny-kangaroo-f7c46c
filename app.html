@@ -1448,7 +1448,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-20 · 56</span>
+    الإصدار <span style="font-weight:700">2026-07-20 · 57</span>
   </div>
 </div>
 
@@ -1743,7 +1743,7 @@ function injectIcons(root=document) {
 
     <!-- إعداد صفحة الشكر -->
     <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
-      <label class="form-label" style="margin-bottom:8px" data-ic="flower">صفحة الشكر (بعد الحفل)</label>
+      <label class="form-label" style="margin-bottom:8px" data-ic="flower">صفحة الشكر</label>
       <select class="form-input" id="event-thanks-mode" onchange="toggleThanksMsg()">
         <option value="interactive">تفاعلية — الضيوف يكتبون تهانيهم</option>
         <option value="message">رسالة فقط — تعرض كلمة شكر بدون كتابة</option>
@@ -2358,7 +2358,7 @@ function injectIcons(root=document) {
           <input type="number" id="bulkqr-count" class="form-input" value="20" min="1" max="2000" style="text-align:center;font-size:18px;font-weight:800">
         </div>
       </div>
-      <button class="btn btn-primary" style="width:100%;padding:15px;font-size:15px" onclick="runBulkQR()">إنشاء الأكواد</button>
+      <button class="btn btn-primary" style="width:100%;padding:15px;font-size:15px" id="bulkqr-run-btn" onclick="runBulkQR(event)">إنشاء الأكواد</button>
     </div>
 
     <!-- Result -->
@@ -2372,7 +2372,7 @@ function injectIcons(root=document) {
       </div>
       <div id="bulkqr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;max-height:340px;overflow-y:auto;padding:4px;margin-bottom:16px"></div>
       <div style="display:flex;gap:10px">
-        <button class="btn btn-primary" style="flex:1;padding:14px" onclick="downloadBulkQR()" data-ic="download">تحميل الأكواد (ZIP)</button>
+        <button class="btn btn-primary" style="flex:1;padding:14px" onclick="downloadBulkQR(event)" data-ic="download">تحميل الأكواد (ZIP)</button>
         <button class="btn btn-secondary" onclick="closeBulkQR()">تم</button>
       </div>
     </div>
@@ -5814,12 +5814,12 @@ function openBulkQR() {
 
 function closeBulkQR() { closeModal('modal-bulkqr'); loadGuests(); }
 
-async function runBulkQR() {
+async function runBulkQR(clickEv) {
   const count = parseInt(document.getElementById('bulkqr-count').value) || 0;
   if (count < 1 || count > 2000) return alert('العدد بين 1 و 2000');
 
-  const btn = event.target;
-  btn.disabled = true;
+  const btn = (clickEv && clickEv.target) || document.getElementById('bulkqr-run-btn');
+  if (btn) btn.disabled = true;
 
   // جهّزي الضيوف بباركود حقيقي
   const rows = [];
@@ -5832,17 +5832,17 @@ async function runBulkQR() {
   const BATCH = 200;
   try {
     for (let i = 0; i < rows.length; i += BATCH) {
-      btn.textContent = `جاري الحفظ... ${Math.min(i + BATCH, rows.length)}/${rows.length}`;
+      if (btn) btn.textContent = `جاري الحفظ... ${Math.min(i + BATCH, rows.length)}/${rows.length}`;
       const chunk = rows.slice(i, i + BATCH);
       const { data, error } = await db.from('guests').insert(chunk).select();
       if (error) throw error;
       _bulkQRGuests.push(...(data || chunk));
     }
   } catch (e) {
-    btn.disabled = false; btn.textContent = 'إنشاء الأكواد';
+    if (btn) { btn.disabled = false; btn.textContent = 'إنشاء الأكواد'; }
     return alert('تعذّر الحفظ: ' + (e.message || e));
   }
-  btn.disabled = false; btn.textContent = 'إنشاء الأكواد';
+  if (btn) { btn.disabled = false; btn.textContent = 'إنشاء الأكواد'; }
 
   // اعرضي النتيجة
   document.getElementById('bulkqr-form').style.display = 'none';
@@ -5854,9 +5854,13 @@ async function runBulkQR() {
   const { data: ev } = await db.from('events').select('qr_color').eq('id', currentEventId).single();
   const qrColor = ev?.qr_color || '#2C1810';
 
-  // للأداء: نعرض معاينة أول 60 فقط (الباقي محفوظ ويتحمّل بالـ ZIP)
-  const previewList = _bulkQRGuests.slice(0, 60);
-  previewList.forEach(g => {
+  // للأداء والذاكرة (خصوصاً بالجوال): معاينة أول 24 فقط، تُبنى تدريجياً
+  const PREVIEW = 24;
+  const previewList = _bulkQRGuests.slice(0, PREVIEW);
+  let idx = 0;
+  function renderNext() {
+    if (idx >= previewList.length) return;
+    const g = previewList[idx++];
     const cell = document.createElement('div');
     cell.style.cssText = 'text-align:center;background:white;border:1px solid var(--border);border-radius:12px;padding:10px 6px';
     const qrBox = document.createElement('div');
@@ -5867,22 +5871,24 @@ async function runBulkQR() {
     label.textContent = g.name;
     cell.appendChild(label);
     grid.appendChild(cell);
-    const gateUrl = g.qr_code;
-    new QRCode(qrBox, { text: gateUrl, width: 90, height: 90, colorDark: qrColor, colorLight: '#ffffff' });
-  });
-  if (_bulkQRGuests.length > 60) {
+    try { new QRCode(qrBox, { text: g.qr_code, width: 90, height: 90, colorDark: qrColor, colorLight: '#ffffff' }); } catch (e) {}
+    // نبني الباقي على دفعات صغيرة عشان ما نثقل المتصفح
+    if (idx % 6 === 0) { setTimeout(renderNext, 30); } else { renderNext(); }
+  }
+  renderNext();
+  if (_bulkQRGuests.length > PREVIEW) {
     const more = document.createElement('div');
     more.style.cssText = 'grid-column:1/-1;text-align:center;color:var(--text-light);font-size:13px;padding:12px;background:var(--rose-light);border-radius:12px';
-    more.textContent = `+ ${_bulkQRGuests.length - 60} باركود إضافي (محفوظة كلها — حمّليها ZIP)`;
+    more.textContent = `+ ${_bulkQRGuests.length - PREVIEW} باركود إضافي (محفوظة كلها — حمّليها ZIP)`;
     grid.appendChild(more);
   }
   injectIcons(document.getElementById('bulkqr-result'));
   updateEventsBadge();
 }
 
-async function downloadBulkQR() {
+async function downloadBulkQR(clickEv) {
   if (!_bulkQRGuests.length) return;
-  const btn = event?.target;
+  const btn = (clickEv && clickEv.target) || null;
   const origText = btn ? btn.textContent : '';
   const zip = new JSZip();
   const { data: ev } = await db.from('events').select('qr_color, name').eq('id', currentEventId).single();
