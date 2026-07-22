@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 64</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 65</span>
   </div>
 </div>
 
@@ -2218,7 +2218,7 @@ function injectIcons(root=document) {
               <tr>
                 <th>الاسم</th>
                 <th>البريد</th>
-                <th>كلمة المرور</th>
+                
                 <th>الدور</th>
                 <th>الحالة</th>
                 <th>إجراءات</th>
@@ -2768,10 +2768,15 @@ async function loginWithCode() {
   // التحقق من أن الحساب المرتبط مفعّل (يجي من نفس الدالة الآمنة)
   if (data.is_active === false) return showAuthError('هذا الحساب معطّل — تواصلي مع الإدارة');
 
-  // Sign in with the linked email using stored temp password
+  // نجيب بيانات الدخول عبر دالة آمنة (الجدول نفسه مقفول تماماً)
+  const { data: cred } = await db.rpc('pub_redeem_access_code', { code_input: code });
+  if (!cred || cred.ok !== true) {
+    showAuthError('الرمز غير صحيح أو معطّل');
+    return;
+  }
   const { data: signIn, error: signErr } = await db.auth.signInWithPassword({
-    email: data.email,
-    password: data.temp_password
+    email: cred.email,
+    password: cred.password
   });
 
   if (signErr) return showAuthError('خطأ في الدخول، تواصلي مع المدير');
@@ -4575,7 +4580,6 @@ async function loadUsers() {
     <tr>
       <td data-label="الاسم">${esc(u.full_name) || '-'}</td>
       <td data-label="البريد" dir="ltr">${esc(u.email)}</td>
-      <td data-label="كلمة المرور" dir="ltr" style="font-family:monospace;font-size:12px;color:var(--text-light)">${u.pw_hint ? esc(u.pw_hint) : '—'}</td>
       <td data-label="الدور"><span class="badge badge-${u.role}">${u.role === 'admin' ? 'أدمن' : 'منظمة'}</span></td>
       <td data-label="الحالة"><span class="badge ${u.is_active ? 'badge-confirmed' : 'badge-declined'}">${u.is_active ? 'نشط' : 'معطل'}</span></td>
       <td style="text-align:center">
@@ -4657,7 +4661,6 @@ async function changeUserPassword(u) {
  alert('تعذّر التغيير من هنا.\n\nغيّريها من Supabase Authentication Users ' + u.email);
     return;
   }
-  await db.rpc('admin_update_user', { user_input: u.id, pw_hint_input: pw });
   logActivity('تغيير كلمة مرور', u.full_name || u.email);
  alert('تم تغيير كلمة المرور\n\nالجديدة: ' + pw + '\nاحفظيها وأعطيها للمستخدمة.');
   loadUsers();
