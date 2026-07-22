@@ -1451,7 +1451,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-20 · 61</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 62</span>
   </div>
 </div>
 
@@ -4466,17 +4466,14 @@ async function generateAccessCode() {
 
   const tempPass = 'BWB_' + Math.random().toString(36).substr(2,10);
 
-  // ننشئ الحساب. لو الإيميل موجود من قبل، signUp يفشل — وهذا طبيعي.
-  const { data: authData } = await dbTemp.auth.signUp({
-    email, password: tempPass,
-    options: { data: { full_name: name, role: 'organizer' } }
+  // إنشاء آمن عبر الدالة المحمية (التسجيل الذاتي مقفول لمنع إنشاء حسابات دخيلة)
+  await db.rpc('admin_create_account', {
+    email_input: email, password_input: tempPass, name_input: name
   });
 
-  // 🔴 الباق القديم: كان يتجاهل فشل signUp ويحفظ كلمة مرور ما انضبطت أبداً،
-  //    فالدخول بالرمز يفشل دايماً لو الإيميل موجود مسبقاً.
-  //    الحل: نجيب معرّف المستخدم ونضبط كلمة المرور فعلياً بالسيرفر.
-  let uid = authData?.user?.id;
-  if (!uid) {
+  // نجيب معرّف الحساب (سواء انشأ الحين أو كان موجوداً)
+  let uid = null;
+  {
     const { data: found } = await db.rpc('admin_find_user', { email_input: email });
     uid = found;
   }
@@ -4687,22 +4684,17 @@ async function createUser() {
   const password = document.getElementById('new-user-password').value;
   if (!email || !password) return;
 
-  const { error } = await dbTemp.auth.signUp({
-    email, password,
-    options: { data: { full_name: name, role: 'organizer' } }
+  // إنشاء آمن عبر دالة محمية للمالكة فقط (التسجيل الذاتي مقفول)
+  const { data: res, error } = await db.rpc('admin_create_account', {
+    email_input: email, password_input: password, name_input: name
   });
 
-  if (error) {
-    document.getElementById('user-modal-error').textContent = 'تعذر إنشاء الحساب: ' + error.message;
+  if (error || !res || res.ok !== true) {
+    document.getElementById('user-modal-error').textContent =
+      'تعذر إنشاء الحساب: ' + (res?.msg || error?.message || 'خطأ غير معروف');
     document.getElementById('user-modal-error').style.display = 'block';
     return;
   }
-
-  // احفظي كلمة المرور كتلميح للأدمن (يشوفها بالجدول)
-  try {
-    const { data: uid } = await db.rpc('admin_find_user', { email_input: email });
-    if (uid) await db.rpc('admin_update_user', { user_input: uid, pw_hint_input: password });
-  } catch(e) {}
 
   closeModal('modal-user');
   logActivity('إضافة مستخدم', email);
