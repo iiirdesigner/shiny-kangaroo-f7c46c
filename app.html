@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 68</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 69</span>
   </div>
 </div>
 
@@ -1943,6 +1943,20 @@ function injectIcons(root=document) {
             <option value="">— اختاري المناسبة —</option>
           </select>
           <div id="dz-guest-count" style="font-size:13px;color:var(--text-light);margin-top:8px"></div>
+
+          <div id="dz-range-box" style="display:none;margin-top:12px;background:var(--rose-light);padding:12px;border-radius:12px">
+            <label class="form-label" style="margin-bottom:6px;font-size:12.5px">
+              <span data-ic="users" data-ic-size="15"></span> نطاق الدعوات المطلوب تحميلها
+            </label>
+            <p style="font-size:11px;color:var(--text-light);margin:0 0 10px;line-height:1.7">مثال: من 1 إلى 250 تحفظينهم، ثم من 251 إلى 400 — أو اتركيها كما هي لتحميل الكل.</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-size:12.5px;font-weight:700;min-width:26px">من</span>
+              <input type="number" id="dz-from" min="1" value="1" class="form-input" style="flex:1;padding:10px;font-size:14px;text-align:center" oninput="dzRangeInfo()">
+              <span style="font-size:12.5px;font-weight:700;min-width:26px;text-align:center">إلى</span>
+              <input type="number" id="dz-to" min="1" value="1" class="form-input" style="flex:1;padding:10px;font-size:14px;text-align:center" oninput="dzRangeInfo()">
+            </div>
+            <div id="dz-range-info" style="font-size:12px;font-weight:800;color:var(--text);margin-top:9px;text-align:center"></div>
+          </div>
 
           
         </div>
@@ -4913,10 +4927,50 @@ async function dzLoadEvent() {
 
   dzUpdatePreviewList();
 
+  // نجهّز نطاق التحميل
+  const box = document.getElementById('dz-range-box');
+  const fromEl = document.getElementById('dz-from');
+  const toEl = document.getElementById('dz-to');
+  if (box && fromEl && toEl) {
+    box.style.display = dzGuests.length ? 'block' : 'none';
+    fromEl.value = 1; fromEl.max = dzGuests.length;
+    toEl.value = dzGuests.length; toEl.max = dzGuests.length;
+    dzRangeInfo();
+  }
+
   // نسترجع التنسيق المحفوظ لهذي المناسبة (لو موجود)
   await dzLoadSavedDesign(eventId);
 
   dzRender();
+}
+
+// ── نطاق الدعوات المطلوب تحميلها ──
+function dzRangeInfo() {
+  const total = dzGuests.length;
+  const fromEl = document.getElementById('dz-from');
+  const toEl = document.getElementById('dz-to');
+  const info = document.getElementById('dz-range-info');
+  if (!fromEl || !toEl || !info) return;
+
+  let from = parseInt(fromEl.value) || 1;
+  let to = parseInt(toEl.value) || total;
+  from = Math.max(1, Math.min(from, total));
+  to = Math.max(from, Math.min(to, total));
+
+  const count = to - from + 1;
+  info.textContent = `المحدّد: ${count} دعوة (من ${from} إلى ${to}) — الإجمالي ${total}`;
+  info.style.color = count > 250 ? '#B45309' : 'var(--text)';
+  if (count > 250) info.textContent += ' · يفضّل 250 أو أقل بالمرة';
+}
+
+// ترجع الدعوات المحدّدة بالنطاق
+function dzSelectedGuests() {
+  const total = dzGuests.length;
+  let from = parseInt(document.getElementById('dz-from')?.value) || 1;
+  let to = parseInt(document.getElementById('dz-to')?.value) || total;
+  from = Math.max(1, Math.min(from, total));
+  to = Math.max(from, Math.min(to, total));
+  return dzGuests.slice(from - 1, to);
 }
 
 // ── حفظ/استرجاع تنسيق الدعوة لكل مناسبة ──
@@ -5180,7 +5234,9 @@ async function dzExportAll(mode) {
   area.style.display = 'block';
   area.innerHTML = '';
 
-  const total = dzGuests.length;
+  const picked = dzSelectedGuests();
+  const total = picked.length;
+  if (!total) { _dzBusy = false; return alert('حدّدي نطاقاً صحيحاً'); }
 
   try {
     if (mode === 'gallery') {
@@ -5188,7 +5244,7 @@ async function dzExportAll(mode) {
       const CH = total > 150 ? 60 : total;      // دفعة وحدة للأعداد الصغيرة
       const rounds = Math.ceil(total / CH);
       for (let r = 0; r < rounds; r++) {
-        const slice = dzGuests.slice(r * CH, (r + 1) * CH);
+        const slice = picked.slice(r * CH, (r + 1) * CH);
         const label = rounds > 1 ? `المجموعة ${r + 1} من ${rounds}` : '';
         const imgFiles = await dzBuildImages(slice, progress, label);
         progress.textContent = `${label || 'الصور'} جاهزة (${slice.length} دعوة)`;
@@ -5198,7 +5254,7 @@ async function dzExportAll(mode) {
       }
     } else {
       // ملف مضغوط واحد فيه كل الدعوات
-      const blob = await dzBuildZip(dzGuests, progress, 'الملف');
+      const blob = await dzBuildZip(picked, progress, 'الملف');
       progress.textContent = `الملف جاهز (${total} دعوة)`;
       await dzOfferSave(blob, 'دعوات.zip', 'الملف', area);
     }
