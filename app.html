@@ -25,6 +25,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
@@ -1451,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 63</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 64</span>
   </div>
 </div>
 
@@ -2051,8 +2052,12 @@ function injectIcons(root=document) {
               <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border)">
                 <div style="font-weight:800;font-size:14px;margin-bottom:12px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">4</span> التحميل</div>
                 <div id="dz-progress" style="display:none;text-align:center;padding:10px;font-weight:700;color:var(--rose);font-size:13.5px;margin-bottom:8px"></div>
-                <button class="btn btn-primary" style="width:100%;padding:15px;font-size:15px" onclick="dzGenerateAll()"><span data-ic="save" data-ic-size="16"></span> تحميل كل الدعوات</button>
-                <p style="font-size:11.5px;color:var(--text-light);margin:8px 0 14px;text-align:center;line-height:1.7"><span data-ic="bulb" data-ic-size="15"></span> على الكمبيوتر: تنزل مباشرة (مجلد التنزيلات).<br>على الجوال: تفتح لك "مشاركة" — اختاري "حفظ في الملفات".</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <button class="btn btn-primary" style="padding:15px 8px;font-size:14px" onclick="dzExportAll('jpg')"><span data-ic="image" data-ic-size="16"></span> صور عالية الجودة</button>
+                  <button class="btn btn-primary" style="padding:15px 8px;font-size:14px" onclick="dzExportAll('pdf')"><span data-ic="download" data-ic-size="16"></span> ملف PDF</button>
+                </div>
+                <p style="font-size:11.5px;color:var(--text-light);margin:10px 0 14px;text-align:center;line-height:1.8"><span data-ic="bulb" data-ic-size="15"></span> الدعوات تتقسّم لملفات صغيرة تناسب الجوال — بعد كل ملف يظهر زر الحفظ، احفظيه ثم يجهّز اللي بعده تلقائياً.</p>
+                <div id="dz-batch-area" style="display:none;margin-bottom:14px"></div>
                 <div style="height:1px;background:var(--border);margin:4px 0 12px"></div>
                 <button class="btn btn-secondary" style="width:100%;padding:12px;font-size:13.5px" onclick="dzGallerySave()"><span data-ic="phone" data-ic-size="16"></span> حفظ صورة صورة (للجوال)</button>
                 <button class="btn btn-secondary" style="width:100%;padding:12px;margin-top:8px;font-size:13.5px" onclick="dzDownloadPreview()">تحميل دعوة وحدة (معاينة)</button>
@@ -5071,6 +5076,150 @@ function dzSetupDrag() {
   canvas.addEventListener('touchstart', start, { passive: false });
   canvas.addEventListener('touchmove', move, { passive: false });
   canvas.addEventListener('touchend', end);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  تصدير الدعوات — مصمم ليشتغل على الجوال بدون انهيار
+//  • JPEG بجودة 95% (نفس الوضوح، حجم أصغر بكثير من PNG)
+//  • تقسيم لدفعات صغيرة يتحملها سفاري وكروم
+//  • زر حفظ لكل دفعة (ضغطة المستخدم = الجوال يقبل الحفظ مضمون)
+// ═══════════════════════════════════════════════════════════════
+let _dzBusy = false;
+
+async function dzExportAll(format) {
+  if (_dzBusy) return;
+  if (!dzImage) return alert('ارفعي صورة الدعوة أولاً');
+  if (!dzGuests.length) return alert('اختاري مناسبة فيها ضيوف');
+
+  _dzBusy = true;
+  const progress = document.getElementById('dz-progress');
+  const area = document.getElementById('dz-batch-area');
+  progress.style.display = 'block';
+  area.style.display = 'block';
+  area.innerHTML = '';
+
+  const total = dzGuests.length;
+  const PER_FILE = format === 'pdf' ? 25 : 30;   // حجم آمن للجوال
+  const files = Math.ceil(total / PER_FILE);
+
+  try {
+    for (let b = 0; b < files; b++) {
+      const from = b * PER_FILE;
+      const slice = dzGuests.slice(from, from + PER_FILE);
+      const label = files > 1 ? `الملف ${b + 1} من ${files}` : 'الملف';
+
+      const blob = format === 'pdf'
+        ? await dzBuildPdf(slice, progress, label)
+        : await dzBuildZip(slice, progress, label);
+
+      const ext = format === 'pdf' ? 'pdf' : 'zip';
+      const fname = files > 1 ? `دعوات-${b + 1}.${ext}` : `دعوات.${ext}`;
+
+      // زر حفظ لكل ملف — ننتظر ضغطة المستخدم قبل ما نكمل
+      progress.textContent = `${label} جاهز (${slice.length} دعوة)`;
+      await dzOfferSave(blob, fname, label, area);
+
+      await new Promise(r => setTimeout(r, 120));   // نفس للمتصفح ونحرر الذاكرة
+    }
+
+    progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! ${total} دعوة بجودة عالية`;
+    injectIcons(progress);
+  } catch (e) {
+    progress.textContent = 'تعذّر التجهيز: ' + (e.message || e);
+  } finally {
+    _dzBusy = false;
+    setTimeout(() => { progress.style.display = 'none'; }, 6000);
+  }
+}
+
+// يبني ZIP من صور JPEG عالية الجودة
+async function dzBuildZip(list, progress, label) {
+  const zip = new JSZip();
+  const W = dzImage.width, H = dzImage.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  for (let i = 0; i < list.length; i++) {
+    const g = list[i];
+    progress.textContent = `${label}: تجهيز ${i + 1} من ${list.length}...`;
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
+    zip.file(`${g.name}.jpg`, blob);
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  canvas.width = canvas.height = 1;   // نحرر الذاكرة
+  return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+}
+
+// يبني PDF — كل دعوة بصفحة كاملة بجودة عالية
+async function dzBuildPdf(list, progress, label) {
+  const { jsPDF } = window.jspdf;
+  const W = dzImage.width, H = dzImage.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const pdf = new jsPDF({
+    orientation: W > H ? 'landscape' : 'portrait',
+    unit: 'px',
+    format: [W, H],
+    compress: true
+  });
+
+  for (let i = 0; i < list.length; i++) {
+    const g = list[i];
+    progress.textContent = `${label}: تجهيز ${i + 1} من ${list.length}...`;
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    if (i > 0) pdf.addPage([W, H], W > H ? 'landscape' : 'portrait');
+    pdf.addImage(dataUrl, 'JPEG', 0, 0, W, H, undefined, 'FAST');
+    if (i % 4 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  canvas.width = canvas.height = 1;
+  return pdf.output('blob');
+}
+
+// يعرض زر حفظ وينتظر ضغطة المستخدم (الطريقة الوحيدة المضمونة بالجوال)
+function dzOfferSave(blob, fname, label, area) {
+  return new Promise(resolve => {
+    const mime = fname.endsWith('.pdf') ? 'application/pdf' : 'application/zip';
+    const file = new File([blob], fname, { type: mime });
+    const canShare = navigator.canShare && navigator.canShare({ files: [file] });
+
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.style.cssText = 'width:100%;padding:14px;font-size:14px;margin-bottom:8px';
+    btn.innerHTML = `<span data-ic="save" data-ic-size="16"></span> احفظي ${label}`;
+
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      btn.disabled = true;
+      btn.style.opacity = '.55';
+      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${label} — تم الحفظ`;
+      injectIcons(btn);
+      resolve();
+    };
+
+    btn.onclick = async () => {
+      if (canShare) {
+        try { await navigator.share({ files: [file], title: 'دعوات' }); finish(); return; }
+        catch (e) { /* لو ألغت، نجرب التنزيل العادي */ }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      finish();
+    };
+
+    area.appendChild(btn);
+    injectIcons(area);
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 }
 
 async function dzGenerateAll() {
