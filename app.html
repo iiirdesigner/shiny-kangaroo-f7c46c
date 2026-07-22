@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 67</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 68</span>
   </div>
 </div>
 
@@ -1934,6 +1934,11 @@ function injectIcons(root=document) {
         <div style="background:white;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:16px">
           <div style="font-weight:800;font-size:15px;margin-bottom:12px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">1</span> اختاري المناسبة</div>
 
+          <div id="dz-restored" style="display:none;align-items:center;gap:8px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;padding:10px 12px;border-radius:12px;font-size:12.5px;font-weight:700;margin-bottom:10px">
+            <span data-ic="check" data-ic-size="16"></span>
+            <span>رجّعنا لك تنسيق هذي المناسبة المحفوظ — عدّليه أو ارفعي صورة جديدة</span>
+          </div>
+          <div id="dz-saved-note" style="display:none;background:var(--rose-light);color:var(--text-light);padding:7px 12px;border-radius:10px;font-size:11.5px;font-weight:700;margin-bottom:10px;text-align:center">تم حفظ التنسيق تلقائياً ✓</div>
           <select class="form-input" id="dz-event-select" onchange="dzLoadEvent()">
             <option value="">— اختاري المناسبة —</option>
           </select>
@@ -4908,7 +4913,80 @@ async function dzLoadEvent() {
 
   dzUpdatePreviewList();
 
+  // نسترجع التنسيق المحفوظ لهذي المناسبة (لو موجود)
+  await dzLoadSavedDesign(eventId);
+
   dzRender();
+}
+
+// ── حفظ/استرجاع تنسيق الدعوة لكل مناسبة ──
+function dzCollectDesign() {
+  const val = id => document.getElementById(id)?.value;
+  const chk = id => document.getElementById(id)?.checked;
+  return {
+    namePos: dzState.namePos, qrPos: dzState.qrPos,
+    nameSize: val('dz-name-size'), qrSize: val('dz-qr-size'),
+    nameColor: val('dz-name-color'), qrColor: val('dz-qr-color'),
+    nameFont: val('dz-name-font'),
+    showName: chk('dz-show-name'), showQr: chk('dz-show-qr'),
+    image: dzImage ? dzImage.src : null
+  };
+}
+
+async function dzSaveDesign() {
+  const eventId = document.getElementById('dz-event-select')?.value;
+  if (!eventId || !dzImage) return;
+  try {
+    await db.from('events').update({ invite_design: dzCollectDesign() }).eq('id', eventId);
+    const note = document.getElementById('dz-saved-note');
+    if (note) {
+      note.style.display = 'block';
+      clearTimeout(window._dzNoteT);
+      window._dzNoteT = setTimeout(() => { note.style.display = 'none'; }, 2500);
+    }
+  } catch (e) { /* الحفظ إضافة — ما نكسر الشغل لو فشل */ }
+}
+
+async function dzLoadSavedDesign(eventId) {
+  try {
+    const { data: ev } = await db.from('events').select('invite_design').eq('id', eventId).single();
+    const d = ev?.invite_design;
+    if (!d || !d.image) return;
+
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    const setChk = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.checked = v; };
+
+    if (d.namePos) dzState.namePos = d.namePos;
+    if (d.qrPos) dzState.qrPos = d.qrPos;
+    set('dz-name-size', d.nameSize); set('dz-qr-size', d.qrSize);
+    set('dz-name-color', d.nameColor); set('dz-qr-color', d.qrColor);
+    set('dz-name-hex', d.nameColor); set('dz-qr-hex', d.qrColor);
+    set('dz-name-font', d.nameFont);
+    setChk('dz-show-name', d.showName); setChk('dz-show-qr', d.showQr);
+    const ns = document.getElementById('dz-name-size-val'); if (ns && d.nameSize) ns.textContent = d.nameSize;
+    const qs = document.getElementById('dz-qr-size-val'); if (qs && d.qrSize) qs.textContent = d.qrSize;
+
+    // نرجّع صورة الدعوة نفسها
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        dzImage = img;
+        const ed = document.getElementById('dz-editor');
+        if (ed) ed.style.display = 'block';
+        dzSetupDrag();
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = d.image;
+    });
+
+    const banner = document.getElementById('dz-restored');
+    if (banner) {
+      banner.style.display = 'flex';
+      clearTimeout(window._dzBannerT);
+      window._dzBannerT = setTimeout(() => { banner.style.display = 'none'; }, 6000);
+    }
+  } catch (e) { /* ما فيه تنسيق محفوظ — عادي */ }
 }
 
 function dzLoadImage(input) {
@@ -4996,6 +5074,8 @@ function dzRenderTo(ctx, W, H, guestName, qrText) {
 }
 
 function dzRender() {
+  clearTimeout(window._dzSaveT);
+  window._dzSaveT = setTimeout(dzSaveDesign, 1200);   // حفظ تلقائي بعد التعديل
   if (!dzImage) return;
   const canvas = document.getElementById('dz-canvas');
   // Display size capped
@@ -5104,10 +5184,18 @@ async function dzExportAll(mode) {
 
   try {
     if (mode === 'gallery') {
-      // كل الصور تُحفظ بالاستديو دفعة وحدة عبر المشاركة
-      const imgFiles = await dzBuildImages(progress);
-      progress.textContent = `${total} دعوة جاهزة`;
-      await dzOfferGallerySave(imgFiles, area, progress);
+      // نبني ونحفظ على دفعات — الذاكرة تبقى خفيفة مهما كان العدد
+      const CH = total > 150 ? 60 : total;      // دفعة وحدة للأعداد الصغيرة
+      const rounds = Math.ceil(total / CH);
+      for (let r = 0; r < rounds; r++) {
+        const slice = dzGuests.slice(r * CH, (r + 1) * CH);
+        const label = rounds > 1 ? `المجموعة ${r + 1} من ${rounds}` : '';
+        const imgFiles = await dzBuildImages(slice, progress, label);
+        progress.textContent = `${label || 'الصور'} جاهزة (${slice.length} دعوة)`;
+        await dzOfferGallerySave(imgFiles, area, progress, label);
+        imgFiles.length = 0;                     // نحرر الذاكرة قبل الدفعة الجاية
+        await new Promise(r2 => setTimeout(r2, 150));
+      }
     } else {
       // ملف مضغوط واحد فيه كل الدعوات
       const blob = await dzBuildZip(dzGuests, progress, 'الملف');
@@ -5125,16 +5213,16 @@ async function dzExportAll(mode) {
 }
 
 // يبني كل الدعوات كصور JPEG جاهزة للحفظ بالاستديو
-async function dzBuildImages(progress) {
+async function dzBuildImages(list, progress, label) {
   const W = dzImage.width, H = dzImage.height;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   const out = [];
 
-  for (let i = 0; i < dzGuests.length; i++) {
-    const g = dzGuests[i];
-    progress.textContent = `تجهيز ${i + 1} من ${dzGuests.length}...`;
+  for (let i = 0; i < list.length; i++) {
+    const g = list[i];
+    progress.textContent = `${label ? label + ' — ' : ''}تجهيز ${i + 1} من ${list.length}...`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
     out.push(new File([blob], `${g.name}.jpg`, { type: 'image/jpeg' }));
@@ -5145,12 +5233,12 @@ async function dzBuildImages(progress) {
 }
 
 // زر يحفظ كل الصور بالاستديو دفعة وحدة
-function dzOfferGallerySave(files, area, progress) {
+function dzOfferGallerySave(files, area, progress, label) {
   return new Promise(resolve => {
     const btn = document.createElement('button');
     btn.className = 'btn btn-primary';
     btn.style.cssText = 'width:100%;padding:15px;font-size:15px;margin-bottom:8px';
-    btn.innerHTML = `<span data-ic="phone" data-ic-size="16"></span> احفظي ${files.length} صورة بالاستديو`;
+    btn.innerHTML = `<span data-ic="phone" data-ic-size="16"></span> احفظي ${files.length} صورة${label ? ' — ' + label : ''}`;
 
     btn.onclick = async () => {
       btn.disabled = true;
