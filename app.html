@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 65</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 67</span>
   </div>
 </div>
 
@@ -2052,11 +2052,10 @@ function injectIcons(root=document) {
               <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border)">
                 <div style="font-weight:800;font-size:14px;margin-bottom:12px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">4</span> التحميل</div>
                 <div id="dz-progress" style="display:none;text-align:center;padding:10px;font-weight:700;color:var(--rose);font-size:13.5px;margin-bottom:8px"></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                  <button class="btn btn-primary" style="padding:15px 8px;font-size:14px" onclick="dzExportAll('jpg')"><span data-ic="image" data-ic-size="16"></span> صور عالية الجودة</button>
-                  <button class="btn btn-primary" style="padding:15px 8px;font-size:14px" onclick="dzExportAll('pdf')"><span data-ic="download" data-ic-size="16"></span> ملف PDF</button>
-                </div>
-                <p style="font-size:11.5px;color:var(--text-light);margin:10px 0 14px;text-align:center;line-height:1.8"><span data-ic="bulb" data-ic-size="15"></span> الدعوات تتقسّم لملفات صغيرة تناسب الجوال — بعد كل ملف يظهر زر الحفظ، احفظيه ثم يجهّز اللي بعده تلقائياً.</p>
+                <button class="btn btn-primary" style="width:100%;padding:15px;font-size:15px" onclick="dzExportAll('gallery')"><span data-ic="phone" data-ic-size="16"></span> حفظ كل الصور بالاستديو</button>
+                <p style="font-size:11.5px;color:var(--text-light);margin:8px 0 12px;text-align:center;line-height:1.8">للجوال: تفتح المشاركة → اختاري <b>"حفظ الصور"</b> فتنحفظ كلها بالاستديو دفعة وحدة</p>
+                <button class="btn btn-secondary" style="width:100%;padding:13px;font-size:14px" onclick="dzExportAll('zip')"><span data-ic="download" data-ic-size="16"></span> ملف مضغوط واحد (كل الدعوات)</button>
+                <p style="font-size:11.5px;color:var(--text-light);margin:8px 0 14px;text-align:center;line-height:1.8">ملف ZIP واحد فيه كل الدعوات — للكمبيوتر أو الحفظ في الملفات</p>
                 <div id="dz-batch-area" style="display:none;margin-bottom:14px"></div>
                 <div style="height:1px;background:var(--border);margin:4px 0 12px"></div>
                 <button class="btn btn-secondary" style="width:100%;padding:12px;font-size:13.5px" onclick="dzGallerySave()"><span data-ic="phone" data-ic-size="16"></span> حفظ صورة صورة (للجوال)</button>
@@ -5089,7 +5088,7 @@ function dzSetupDrag() {
 // ═══════════════════════════════════════════════════════════════
 let _dzBusy = false;
 
-async function dzExportAll(format) {
+async function dzExportAll(mode) {
   if (_dzBusy) return;
   if (!dzImage) return alert('ارفعي صورة الدعوة أولاً');
   if (!dzGuests.length) return alert('اختاري مناسبة فيها ضيوف');
@@ -5102,37 +5101,95 @@ async function dzExportAll(format) {
   area.innerHTML = '';
 
   const total = dzGuests.length;
-  const PER_FILE = format === 'pdf' ? 25 : 30;   // حجم آمن للجوال
-  const files = Math.ceil(total / PER_FILE);
 
   try {
-    for (let b = 0; b < files; b++) {
-      const from = b * PER_FILE;
-      const slice = dzGuests.slice(from, from + PER_FILE);
-      const label = files > 1 ? `الملف ${b + 1} من ${files}` : 'الملف';
-
-      const blob = format === 'pdf'
-        ? await dzBuildPdf(slice, progress, label)
-        : await dzBuildZip(slice, progress, label);
-
-      const ext = format === 'pdf' ? 'pdf' : 'zip';
-      const fname = files > 1 ? `دعوات-${b + 1}.${ext}` : `دعوات.${ext}`;
-
-      // زر حفظ لكل ملف — ننتظر ضغطة المستخدم قبل ما نكمل
-      progress.textContent = `${label} جاهز (${slice.length} دعوة)`;
-      await dzOfferSave(blob, fname, label, area);
-
-      await new Promise(r => setTimeout(r, 120));   // نفس للمتصفح ونحرر الذاكرة
+    if (mode === 'gallery') {
+      // كل الصور تُحفظ بالاستديو دفعة وحدة عبر المشاركة
+      const imgFiles = await dzBuildImages(progress);
+      progress.textContent = `${total} دعوة جاهزة`;
+      await dzOfferGallerySave(imgFiles, area, progress);
+    } else {
+      // ملف مضغوط واحد فيه كل الدعوات
+      const blob = await dzBuildZip(dzGuests, progress, 'الملف');
+      progress.textContent = `الملف جاهز (${total} دعوة)`;
+      await dzOfferSave(blob, 'دعوات.zip', 'الملف', area);
     }
-
     progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! ${total} دعوة بجودة عالية`;
     injectIcons(progress);
   } catch (e) {
-    progress.textContent = 'تعذّر التجهيز: ' + (e.message || e);
+    progress.textContent = 'تعذّر التجهيز: ' + (e.message || e) + ' — جرّبي الملف المضغوط أو من كمبيوتر.';
   } finally {
     _dzBusy = false;
-    setTimeout(() => { progress.style.display = 'none'; }, 6000);
+    setTimeout(() => { progress.style.display = 'none'; }, 7000);
   }
+}
+
+// يبني كل الدعوات كصور JPEG جاهزة للحفظ بالاستديو
+async function dzBuildImages(progress) {
+  const W = dzImage.width, H = dzImage.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const out = [];
+
+  for (let i = 0; i < dzGuests.length; i++) {
+    const g = dzGuests[i];
+    progress.textContent = `تجهيز ${i + 1} من ${dzGuests.length}...`;
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
+    out.push(new File([blob], `${g.name}.jpg`, { type: 'image/jpeg' }));
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  canvas.width = canvas.height = 1;
+  return out;
+}
+
+// زر يحفظ كل الصور بالاستديو دفعة وحدة
+function dzOfferGallerySave(files, area, progress) {
+  return new Promise(resolve => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.style.cssText = 'width:100%;padding:15px;font-size:15px;margin-bottom:8px';
+    btn.innerHTML = `<span data-ic="phone" data-ic-size="16"></span> احفظي ${files.length} صورة بالاستديو`;
+
+    btn.onclick = async () => {
+      btn.disabled = true;
+      // نجرب مشاركة الكل دفعة وحدة
+      if (navigator.canShare && navigator.canShare({ files })) {
+        try {
+          await navigator.share({ files, title: 'دعوات' });
+          btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم الحفظ`;
+          injectIcons(btn); resolve(); return;
+        } catch (e) { /* نكمل للبديل */ }
+      }
+      // بديل: مجموعات أصغر (بعض الأجهزة تحدّ عدد الصور بالمشاركة الواحدة)
+      const CH = 20;
+      for (let i = 0; i < files.length; i += CH) {
+        const part = files.slice(i, i + CH);
+        const n = Math.floor(i / CH) + 1, all = Math.ceil(files.length / CH);
+        progress.textContent = `المجموعة ${n} من ${all} — اختاري "حفظ الصور"`;
+        if (navigator.canShare && navigator.canShare({ files: part })) {
+          try { await navigator.share({ files: part, title: `دعوات ${n}` }); }
+          catch (e) { break; }
+        } else {
+          part.forEach(f => {
+            const url = URL.createObjectURL(f);
+            const a = document.createElement('a');
+            a.href = url; a.download = f.name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+          });
+        }
+        await new Promise(r => setTimeout(r, 400));
+      }
+      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم الحفظ`;
+      injectIcons(btn); resolve();
+    };
+
+    area.appendChild(btn);
+    injectIcons(area);
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 }
 
 // يبني ZIP من صور JPEG عالية الجودة
@@ -5163,22 +5220,33 @@ async function dzBuildPdf(list, progress, label) {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  // نحدّد أبعاد الصفحة بدقة معقولة (نحافظ على الوضوح ونكبح الحجم للملف الكامل)
+  const maxDim = 1600;
+  const scale = Math.min(1, maxDim / Math.max(W, H));
+  const PW = Math.round(W * scale), PH = Math.round(H * scale);
+  const out = document.createElement('canvas');
+  out.width = PW; out.height = PH;
+  const octx = out.getContext('2d');
+
   const pdf = new jsPDF({
-    orientation: W > H ? 'landscape' : 'portrait',
+    orientation: PW > PH ? 'landscape' : 'portrait',
     unit: 'px',
-    format: [W, H],
+    format: [PW, PH],
     compress: true
   });
 
   for (let i = 0; i < list.length; i++) {
     const g = list[i];
-    progress.textContent = `${label}: تجهيز ${i + 1} من ${list.length}...`;
+    progress.textContent = `تجهيز الدعوة ${i + 1} من ${list.length}...`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-    if (i > 0) pdf.addPage([W, H], W > H ? 'landscape' : 'portrait');
-    pdf.addImage(dataUrl, 'JPEG', 0, 0, W, H, undefined, 'FAST');
-    if (i % 4 === 0) await new Promise(r => setTimeout(r, 0));
+    octx.clearRect(0, 0, PW, PH);
+    octx.drawImage(canvas, 0, 0, PW, PH);
+    const dataUrl = out.toDataURL('image/jpeg', 0.9);
+    if (i > 0) pdf.addPage([PW, PH], PW > PH ? 'landscape' : 'portrait');
+    pdf.addImage(dataUrl, 'JPEG', 0, 0, PW, PH, undefined, 'FAST');
+    if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
   }
+  out.width = out.height = 1;
   canvas.width = canvas.height = 1;
   return pdf.output('blob');
 }
