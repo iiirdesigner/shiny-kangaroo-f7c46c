@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 71</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 73</span>
   </div>
 </div>
 
@@ -2164,6 +2164,8 @@ function injectIcons(root=document) {
             </div>
             </div>
             <button class="btn btn-primary" style="width:100%" onclick="saveSiteSettings()">حفظ هوية الموقع</button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:13.5px" onclick="resetSiteIdentity()"><span data-ic="back" data-ic-size="15"></span> إرجاع الشعار والاسم الأصليين</button>
+            <p style="font-size:11px;color:var(--text-light);margin-top:8px;text-align:center;line-height:1.7">اتركي الشعار فاضياً ليظهر شعار R•Code الأصلي</p>
             <div id="settings-site-msg" style="display:none;text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:var(--success)"></div>
           </div>
 
@@ -4913,10 +4915,13 @@ async function dzLoadEvent() {
   const eventId = document.getElementById('dz-event-select').value;
   if (!eventId) { dzGuests = []; document.getElementById('dz-guest-count').textContent = ''; return; }
 
-  // ترتيب ثابت (حسب وقت الإضافة ثم الاسم) — يضمن أن رقم 201 هو نفسه دائماً
   const { data: guests } = await db.from('guests').select('*').eq('event_id', eventId)
-    .order('created_at', { ascending: true }).order('name', { ascending: true });
-  dzGuests = guests || [];
+    .order('created_at', { ascending: true });
+
+  // ترتيب طبيعي: لو الأسماء أرقام ترتب 1،2،3…100 (مو 1،10،100)
+  dzGuests = (guests || []).sort((a, b) =>
+    String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' })
+  );
   document.getElementById('dz-guest-count').innerHTML = `<span data-ic="users" data-ic-size="16"></span> ${dzGuests.length} ضيفة في هذي المناسبة`;
 
   // Use event QR color as default
@@ -4944,6 +4949,15 @@ async function dzLoadEvent() {
   await dzLoadSavedDesign(eventId);
 
   dzRender();
+}
+
+// اسم ملف الدعوة — مرتّب بدون تكرار أرقام
+function dzFileName(name, index) {
+  const clean = String(name).trim();
+  // الاسم رقم؟ نصفّره فقط (100 → 0100) فيترتب صح بدون رقم زائد
+  if (/^\d+$/.test(clean)) return clean.padStart(4, '0') + '.jpg';
+  // اسم عادي؟ نسبقه برقم الترتيب
+  return String(index).padStart(3, '0') + '-' + clean + '.jpg';
 }
 
 // ── نطاق الدعوات المطلوب تحميلها ──
@@ -5360,8 +5374,7 @@ async function dzBuildImages(list, progress, label, startNum) {
       `<div style="height:100%;width:${pct}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
-    const num = String((startNum || 1) + i).padStart(3, '0');
-    out.push(new File([blob], `${num}-${g.name}.jpg`, { type: 'image/jpeg' }));
+    out.push(new File([blob], dzFileName(g.name, (startNum || 1) + i), { type: 'image/jpeg' }));
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
   canvas.width = canvas.height = 1;
@@ -5386,7 +5399,7 @@ async function dzBuildZip(list, progress, label) {
       `<div style="height:100%;width:${pctz}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
-    zip.file(`${String(i + 1).padStart(3, '0')}-${g.name}.jpg`, blob);
+    zip.file(dzFileName(g.name, i + 1), blob);
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
   canvas.width = canvas.height = 1;   // نحرر الذاكرة
@@ -6599,6 +6612,23 @@ function loadSiteLogo(input) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+async function resetSiteIdentity() {
+  if (!confirm('نرجّع الشعار واسم الموقع للأصل؟')) return;
+  try {
+    const { error } = await db.from('site_settings').update({
+      logo_url: null,
+      site_name: 'R•Code',
+      primary_color: '#C4956A',
+      updated_at: new Date().toISOString()
+    }).eq('id', 1);
+    if (error) throw error;
+    alert('تم الإرجاع ✅ — حدّثي الصفحة لتشوفي اللوقو الأصلي');
+    location.reload();
+  } catch (e) {
+    alert('تعذّر الإرجاع: ' + (e.message || e));
+  }
 }
 
 async function saveSiteSettings() {
