@@ -1451,7 +1451,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 62</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 63</span>
   </div>
 </div>
 
@@ -1995,8 +1995,11 @@ function injectIcons(root=document) {
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                   <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label">حجم الخط</label>
-                    <input type="range" id="dz-name-size" min="2" max="15" step="0.5" value="6" oninput="dzRender()" style="width:100%;accent-color:var(--rose)">
+                    <label class="form-label" style="display:flex;justify-content:space-between;align-items:center">
+                      <span>حجم الخط</span>
+                      <span id="dz-name-size-val" style="background:var(--rose-light);color:var(--text);font-weight:800;font-size:12px;padding:2px 10px;border-radius:8px;min-width:38px;text-align:center">6</span>
+                    </label>
+                    <input type="range" id="dz-name-size" min="2" max="15" step="0.5" value="6" oninput="document.getElementById('dz-name-size-val').textContent=this.value; dzRender()" style="width:100%;accent-color:var(--rose)">
                   </div>
                   <div class="form-group" style="margin-bottom:0">
                     <label class="form-label">لون الاسم</label>
@@ -2016,8 +2019,11 @@ function injectIcons(root=document) {
                 </label>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                   <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label">حجم الباركود</label>
-                    <input type="range" id="dz-qr-size" min="8" max="40" step="1" value="18" oninput="dzRender()" style="width:100%;accent-color:var(--rose)">
+                    <label class="form-label" style="display:flex;justify-content:space-between;align-items:center">
+                      <span>حجم الباركود</span>
+                      <span id="dz-qr-size-val" style="background:var(--rose-light);color:var(--text);font-weight:800;font-size:12px;padding:2px 10px;border-radius:8px;min-width:38px;text-align:center">18</span>
+                    </label>
+                    <input type="range" id="dz-qr-size" min="8" max="40" step="1" value="18" oninput="document.getElementById('dz-qr-size-val').textContent=this.value; dzRender()" style="width:100%;accent-color:var(--rose)">
                   </div>
                   <div class="form-group" style="margin-bottom:0">
                     <label class="form-label">لون الباركود</label>
@@ -5152,6 +5158,8 @@ function dzPreset(type) {
     dzState.namePos = { x: 0.5, y: 0.55 };
     dzState.qrPos = { x: 0.5, y: 0.75 };
     document.getElementById('dz-name-size').value = 6;
+    const _ns = document.getElementById('dz-name-size-val'); if (_ns) _ns.textContent = '6';
+    const _qs = document.getElementById('dz-qr-size-val'); if (_qs) _qs.textContent = '18';
     document.getElementById('dz-qr-size').value = 18;
     document.getElementById('dz-name-color').value = '#2C1810';
     document.getElementById('dz-name-hex').value = '#2C1810';
