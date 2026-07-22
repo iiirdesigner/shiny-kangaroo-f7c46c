@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 73</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 75</span>
   </div>
 </div>
 
@@ -2072,7 +2072,7 @@ function injectIcons(root=document) {
                 <div style="font-weight:800;font-size:14px;margin-bottom:12px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">4</span> التحميل</div>
                 <div id="dz-progress" style="display:none;text-align:center;padding:10px;font-weight:700;color:var(--rose);font-size:13.5px;margin-bottom:8px"></div>
                 <button class="btn btn-primary" style="width:100%;padding:15px;font-size:15px" onclick="dzExportAll('gallery')"><span data-ic="phone" data-ic-size="16"></span> حفظ كل الصور بالاستديو</button>
-                <p style="font-size:11.5px;color:var(--text-light);margin:8px 0 12px;text-align:center;line-height:1.8">للجوال: تفتح المشاركة → اختاري <b>"حفظ الصور"</b> فتنحفظ كلها بالاستديو دفعة وحدة</p>
+                <p style="font-size:11.5px;color:var(--text-light);margin:8px 0 12px;text-align:center;line-height:1.8">تفتح المشاركة → اختاري <b>"حفظ الصور"</b> فتنحفظ بالاستديو دفعة وحدة</p>
                 <button class="btn btn-secondary" style="width:100%;padding:13px;font-size:14px" onclick="dzExportAll('zip')"><span data-ic="download" data-ic-size="16"></span> ملف مضغوط واحد (كل الدعوات)</button>
                 <p style="font-size:11.5px;color:var(--text-light);margin:8px 0 14px;text-align:center;line-height:1.8">ملف ZIP واحد فيه كل الدعوات — للكمبيوتر أو الحفظ في الملفات</p>
                 <div id="dz-batch-area" style="display:none;margin-bottom:14px"></div>
@@ -4919,9 +4919,12 @@ async function dzLoadEvent() {
     .order('created_at', { ascending: true });
 
   // ترتيب طبيعي: لو الأسماء أرقام ترتب 1،2،3…100 (مو 1،10،100)
-  dzGuests = (guests || []).sort((a, b) =>
-    String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' })
-  );
+  const seen = new Set();
+  dzGuests = (guests || [])
+    .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; })
+    .sort((a, b) =>
+      String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' })
+    );
   document.getElementById('dz-guest-count').innerHTML = `<span data-ic="users" data-ic-size="16"></span> ${dzGuests.length} ضيفة في هذي المناسبة`;
 
   // Use event QR color as default
@@ -4974,9 +4977,10 @@ function dzRangeInfo() {
   to = Math.max(from, Math.min(to, total));
 
   const count = to - from + 1;
-  info.textContent = `المحدّد: ${count} دعوة (من ${from} إلى ${to}) — الإجمالي ${total}`;
-  info.style.color = count > 250 ? '#B45309' : 'var(--text)';
-  if (count > 250) info.textContent += ' · يفضّل 250 أو أقل بالمرة';
+  info.innerHTML = `المحدّد: <b>${count}</b> دعوة (من ${from} إلى ${to}) — الإجمالي ${total}`;
+  if (count > 150) {
+    info.innerHTML += `<div style="color:var(--text-light);font-weight:600;margin-top:5px;font-size:11px">لو ما انحفظت كلها بالاستديو، جرّبي نطاقاً أصغر (بعض الجوالات تحدّ العدد) — أو استخدمي الملف المضغوط</div>`;
+  }
 }
 
 // ترجع أرقام النطاق المضبوطة
