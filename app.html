@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 70</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 71</span>
   </div>
 </div>
 
@@ -5239,51 +5239,108 @@ async function dzExportAll(mode) {
   if (!dzImage) return alert('ارفعي صورة الدعوة أولاً');
   if (!dzGuests.length) return alert('اختاري مناسبة فيها ضيوف');
 
+  const picked = dzSelectedGuests();
+  const r = dzRangeNums();
+  if (!picked.length) return alert('حدّدي نطاقاً صحيحاً');
+
   _dzBusy = true;
   const progress = document.getElementById('dz-progress');
   const area = document.getElementById('dz-batch-area');
   progress.style.display = 'block';
   area.style.display = 'block';
-  area.innerHTML = '';
 
-  const picked = dzSelectedGuests();
-  const total = picked.length;
-  if (!total) { _dzBusy = false; return alert('حدّدي نطاقاً صحيحاً'); }
+  const isAll = (r.from === 1 && r.to === dzGuests.length);
+  const rangeLabel = isAll ? `كل الدعوات (${picked.length})` : `الدعوات ${r.from}–${r.to}`;
 
   try {
     if (mode === 'gallery') {
-      // نبني ونحفظ على دفعات — الذاكرة تبقى خفيفة مهما كان العدد
-      const CH = total > 150 ? 60 : total;      // دفعة وحدة للأعداد الصغيرة
-      const rounds = Math.ceil(total / CH);
-      for (let r = 0; r < rounds; r++) {
-        const slice = picked.slice(r * CH, (r + 1) * CH);
-        const rr = dzRangeNums();
-        const a1 = rr.from + r * CH, a2 = Math.min(a1 + CH - 1, rr.to);
-        const label = rounds > 1 ? `${a1}–${a2}` : '';
-        const rn = dzRangeNums();
-        const imgFiles = await dzBuildImages(slice, progress, label, rn.from + r * CH);
-        progress.textContent = `${label || 'الصور'} جاهزة (${slice.length} دعوة)`;
-        await dzOfferGallerySave(imgFiles, area, progress, label);
-        imgFiles.length = 0;                     // نحرر الذاكرة قبل الدفعة الجاية
-        await new Promise(r2 => setTimeout(r2, 150));
-      }
+      const files = await dzBuildImages(picked, progress, rangeLabel, r.from);
+      progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
+      injectIcons(progress);
+      dzAddGalleryButton(files, area, rangeLabel);
     } else {
-      // ملف مضغوط واحد فيه كل الدعوات
-      const blob = await dzBuildZip(picked, progress, 'الملف');
-      progress.textContent = `الملف جاهز (${total} دعوة)`;
-      const r = dzRangeNums();
-      const fname = (r.from === 1 && r.to === dzGuests.length)
-        ? 'دعوات.zip' : `دعوات-${r.from}-${r.to}.zip`;
-      await dzOfferSave(blob, fname, `الدعوات ${r.from}–${r.to}`, area);
+      const blob = await dzBuildZip(picked, progress, rangeLabel);
+      const fname = isAll ? 'دعوات.zip' : `دعوات-${r.from}-${r.to}.zip`;
+      progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
+      injectIcons(progress);
+      dzAddSaveButton(blob, fname, rangeLabel, area);
     }
-    progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم! ${total} دعوة بجودة عالية`;
-    injectIcons(progress);
   } catch (e) {
-    progress.textContent = 'تعذّر التجهيز: ' + (e.message || e) + ' — جرّبي الملف المضغوط أو من كمبيوتر.';
+    progress.textContent = 'تعذّر التجهيز: ' + (e.message || e) + ' — جرّبي نطاقاً أصغر.';
   } finally {
-    _dzBusy = false;
-    setTimeout(() => { progress.style.display = 'none'; }, 7000);
+    _dzBusy = false;    // جاهز فوراً لنطاق جديد
   }
+}
+
+// زر حفظ الصور بالاستديو — يظهر ويبقى، ما يعلّق شي
+function dzAddGalleryButton(files, area, label) {
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-primary';
+  btn.style.cssText = 'width:100%;padding:15px;font-size:14.5px;margin-bottom:8px';
+  btn.innerHTML = `<span data-ic="phone" data-ic-size="16"></span> احفظي ${files.length} صورة — ${label}`;
+
+  btn.onclick = async () => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = 'جاري الفتح...';
+    try {
+      if (navigator.canShare && navigator.canShare({ files })) {
+        await navigator.share({ files, title: 'دعوات' });
+      } else {
+        files.forEach(f => {
+          const url = URL.createObjectURL(f);
+          const a = document.createElement('a');
+          a.href = url; a.download = f.name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        });
+      }
+      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${label} — تم الحفظ`;
+      btn.style.opacity = '.7';
+      injectIcons(btn);
+    } catch (e) {
+      btn.innerHTML = orig;      // ألغت المشاركة — الزر يرجع كما هو
+      injectIcons(btn);
+    }
+  };
+
+  area.appendChild(btn);
+  injectIcons(area);
+  btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// زر حفظ الملف المضغوط
+function dzAddSaveButton(blob, fname, label, area) {
+  const file = new File([blob], fname, { type: 'application/zip' });
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-primary';
+  btn.style.cssText = 'width:100%;padding:15px;font-size:14.5px;margin-bottom:8px';
+  btn.innerHTML = `<span data-ic="save" data-ic-size="16"></span> احفظي ${label}`;
+
+  btn.onclick = async () => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = 'جاري الفتح...';
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'دعوات' });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fname;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${label} — تم الحفظ`;
+      btn.style.opacity = '.7';
+      injectIcons(btn);
+    } catch (e) {
+      btn.innerHTML = orig;
+      injectIcons(btn);
+    }
+  };
+
+  area.appendChild(btn);
+  injectIcons(area);
+  btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // يبني كل الدعوات كصور JPEG جاهزة للحفظ بالاستديو
@@ -5296,7 +5353,11 @@ async function dzBuildImages(list, progress, label, startNum) {
 
   for (let i = 0; i < list.length; i++) {
     const g = list[i];
-    progress.textContent = `${label ? label + ' — ' : ''}تجهيز ${i + 1} من ${list.length}...`;
+    const pct = Math.round(((i + 1) / list.length) * 100);
+    progress.innerHTML =
+      `<div style="font-weight:800;margin-bottom:6px">جاري التحميل — ${i + 1} من ${list.length} (${pct}%)</div>` +
+      `<div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">` +
+      `<div style="height:100%;width:${pct}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
     const num = String((startNum || 1) + i).padStart(3, '0');
@@ -5307,53 +5368,6 @@ async function dzBuildImages(list, progress, label, startNum) {
   return out;
 }
 
-// زر يحفظ كل الصور بالاستديو دفعة وحدة
-function dzOfferGallerySave(files, area, progress, label) {
-  return new Promise(resolve => {
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-primary';
-    btn.style.cssText = 'width:100%;padding:15px;font-size:15px;margin-bottom:8px';
-    btn.innerHTML = `<span data-ic="phone" data-ic-size="16"></span> احفظي ${files.length} صورة${label ? ' — ' + label : ''}`;
-
-    btn.onclick = async () => {
-      btn.disabled = true;
-      // نجرب مشاركة الكل دفعة وحدة
-      if (navigator.canShare && navigator.canShare({ files })) {
-        try {
-          await navigator.share({ files, title: 'دعوات' });
-          btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم الحفظ`;
-          injectIcons(btn); resolve(); return;
-        } catch (e) { /* نكمل للبديل */ }
-      }
-      // بديل: مجموعات أصغر (بعض الأجهزة تحدّ عدد الصور بالمشاركة الواحدة)
-      const CH = 20;
-      for (let i = 0; i < files.length; i += CH) {
-        const part = files.slice(i, i + CH);
-        const n = Math.floor(i / CH) + 1, all = Math.ceil(files.length / CH);
-        progress.textContent = `المجموعة ${n} من ${all} — اختاري "حفظ الصور"`;
-        if (navigator.canShare && navigator.canShare({ files: part })) {
-          try { await navigator.share({ files: part, title: `دعوات ${n}` }); }
-          catch (e) { break; }
-        } else {
-          part.forEach(f => {
-            const url = URL.createObjectURL(f);
-            const a = document.createElement('a');
-            a.href = url; a.download = f.name;
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 4000);
-          });
-        }
-        await new Promise(r => setTimeout(r, 400));
-      }
-      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> تم الحفظ`;
-      injectIcons(btn); resolve();
-    };
-
-    area.appendChild(btn);
-    injectIcons(area);
-    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
-}
 
 // يبني ZIP من صور JPEG عالية الجودة
 async function dzBuildZip(list, progress, label) {
@@ -5365,7 +5379,11 @@ async function dzBuildZip(list, progress, label) {
 
   for (let i = 0; i < list.length; i++) {
     const g = list[i];
-    progress.textContent = `${label}: تجهيز ${i + 1} من ${list.length}...`;
+    const pctz = Math.round(((i + 1) / list.length) * 100);
+    progress.innerHTML =
+      `<div style="font-weight:800;margin-bottom:6px">جاري التحميل — ${i + 1} من ${list.length} (${pctz}%)</div>` +
+      `<div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">` +
+      `<div style="height:100%;width:${pctz}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
     zip.file(`${String(i + 1).padStart(3, '0')}-${g.name}.jpg`, blob);
@@ -5414,47 +5432,6 @@ async function dzBuildPdf(list, progress, label) {
   return pdf.output('blob');
 }
 
-// يعرض زر حفظ وينتظر ضغطة المستخدم (الطريقة الوحيدة المضمونة بالجوال)
-function dzOfferSave(blob, fname, label, area) {
-  return new Promise(resolve => {
-    const mime = fname.endsWith('.pdf') ? 'application/pdf' : 'application/zip';
-    const file = new File([blob], fname, { type: mime });
-    const canShare = navigator.canShare && navigator.canShare({ files: [file] });
-
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-primary';
-    btn.style.cssText = 'width:100%;padding:14px;font-size:14px;margin-bottom:8px';
-    btn.innerHTML = `<span data-ic="save" data-ic-size="16"></span> احفظي ${label}`;
-
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      btn.disabled = true;
-      btn.style.opacity = '.55';
-      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${label} — تم الحفظ`;
-      injectIcons(btn);
-      resolve();
-    };
-
-    btn.onclick = async () => {
-      if (canShare) {
-        try { await navigator.share({ files: [file], title: 'دعوات' }); finish(); return; }
-        catch (e) { /* لو ألغت، نجرب التنزيل العادي */ }
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = fname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      finish();
-    };
-
-    area.appendChild(btn);
-    injectIcons(area);
-    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
-}
 
 async function dzGenerateAll() {
   if (!dzImage) return alert('ارفعي صورة الدعوة أولاً');
