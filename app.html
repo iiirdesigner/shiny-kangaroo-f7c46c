@@ -246,6 +246,32 @@
     70% { transform:translate(calc(-50% - 5px),-50%); }
   }
 
+  /* المتتبّع — يمسك الباركود نفسه ويرسم حوله */
+  .scan-frame .tracker {
+    position:absolute; opacity:0; pointer-events:none;
+    transition:opacity .18s ease, transform .14s cubic-bezier(.2,.8,.2,1),
+               width .14s cubic-bezier(.2,.8,.2,1), height .14s cubic-bezier(.2,.8,.2,1),
+               left .14s cubic-bezier(.2,.8,.2,1), top .14s cubic-bezier(.2,.8,.2,1);
+  }
+  .scan-frame .tracker.on { opacity:1; }
+  .scan-frame .tracker i {
+    position:absolute; width:22%; height:22%; min-width:16px; min-height:16px;
+    border:3px solid #F5D9A8; border-radius:0;
+    filter:drop-shadow(0 2px 8px rgba(0,0,0,.55));
+    transition:border-color .25s;
+  }
+  .scan-frame .tracker i:nth-child(1) { top:0; left:0;
+    border-right:0; border-bottom:0; border-radius:8px 0 0 0; }
+  .scan-frame .tracker i:nth-child(2) { top:0; right:0;
+    border-left:0; border-bottom:0; border-radius:0 8px 0 0; }
+  .scan-frame .tracker i:nth-child(3) { bottom:0; left:0;
+    border-right:0; border-top:0; border-radius:0 0 0 8px; }
+  .scan-frame .tracker i:nth-child(4) { bottom:0; right:0;
+    border-left:0; border-top:0; border-radius:0 0 8px 0; }
+
+  .scan-frame.ok .tracker i { border-color:#34D399; }
+  .scan-frame.no .tracker i { border-color:#F87171; }
+
   .scan-frame .hint {
     position:absolute; bottom:18px; left:0; right:0; text-align:center;
     color:rgba(255,255,255,.94); font-size:12px; font-weight:700;
@@ -1512,7 +1538,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 85</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 86</span>
   </div>
 </div>
 
@@ -2264,7 +2290,8 @@ function injectIcons(root=document) {
               <div id="qr-reader"></div>
               <div class="scan-frame" id="scan-frame" style="display:none">
                 <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
-                <div class="hint">وجّهي الكاميرا على الباركود</div>
+                <div class="tracker" id="scan-tracker"><i></i><i></i><i></i><i></i></div>
+                <div class="hint">وجّهي الكاميرا — يقرأ من أي مسافة</div>
               </div>
             </div>
           </div>
@@ -4250,8 +4277,8 @@ async function startScanner() {
         },
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }   // محرك الجهاز الأسرع
       },
-      onScanSuccess,
-      () => {}
+      (text, result) => { trackQR(result, 'scan-tracker', 'qr-reader'); onScanSuccess(text); },
+      (err, result) => { trackQR(result, 'scan-tracker', 'qr-reader'); }
     );
     const fr = document.getElementById('scan-frame');
     if (fr) {
@@ -4268,6 +4295,7 @@ async function startScanner() {
 async function stopScanner() {
   const fr = document.getElementById('scan-frame');
   if (fr) { fr.style.display = 'none'; fr.classList.remove('ok', 'no'); }
+  document.getElementById('scan-tracker')?.classList.remove('on');
   if (qrScanner) {
     try { await qrScanner.stop(); } catch(e) {}
     qrScanner = null;
@@ -4301,6 +4329,39 @@ async function mainSearch(q) {
 }
 
 
+
+// يحرّك المتتبّع فوق الباركود المكتشف
+function trackQR(decodedResult, trackerId, readerId) {
+  const tr = document.getElementById(trackerId);
+  const video = document.querySelector('#' + readerId + ' video');
+  if (!tr || !video) return;
+
+  const box = decodedResult?.result?.bounds || decodedResult?.bounds;
+  if (!box || !box.width) { tr.classList.remove('on'); return; }
+
+  // نحوّل إحداثيات الفيديو لإحداثيات الشاشة
+  const vw = video.videoWidth  || video.clientWidth;
+  const vh = video.videoHeight || video.clientHeight;
+  const cw = video.clientWidth, ch = video.clientHeight;
+  if (!vw || !vh || !cw) return;
+
+  // الفيديو يُقص للتعبئة — نحسب المقياس والإزاحة
+  const scale = Math.max(cw / vw, ch / vh);
+  const offX = (cw - vw * scale) / 2;
+  const offY = (ch - vh * scale) / 2;
+
+  const pad = 14;   // هامش صغير حول الباركود
+  const x = box.x * scale + offX - pad;
+  const y = box.y * scale + offY - pad;
+  const w = box.width  * scale + pad * 2;
+  const h2 = box.height * scale + pad * 2;
+
+  tr.style.left   = Math.max(0, x) + 'px';
+  tr.style.top    = Math.max(0, y) + 'px';
+  tr.style.width  = w + 'px';
+  tr.style.height = h2 + 'px';
+  tr.classList.add('on');
+}
 
 // حالة إطار المسح: null=بحث · true=مقبول · false=مرفوض
 function setScanFrame(state, text, frameId) {
@@ -6625,7 +6686,8 @@ async function showSupervisorScanner(eventId) {
           <div id="sup-reader"></div>
           <div class="scan-frame" id="sup-frame" style="display:none">
             <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
-            <div class="hint">وجّهي الكاميرا على الباركود</div>
+            <div class="tracker" id="sup-tracker"><i></i><i></i><i></i><i></i></div>
+            <div class="hint">وجّهي الكاميرا — يقرأ من أي مسافة</div>
           </div>
         </div>
       </div>
@@ -6666,12 +6728,13 @@ async function supStart() {
         },
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       },
-      async (code) => {
+      async (code, result) => {
+        trackQR(result, 'sup-tracker', 'sup-reader');
         const hint = document.getElementById('sup-frame')?.querySelector('.hint');
         if (hint) hint.textContent = 'جاري التحقق...';
         await supProcess(code);
       },
-      () => {}
+      (err, result) => { trackQR(result, 'sup-tracker', 'sup-reader'); }
     );
     const fr = document.getElementById('sup-frame');
     if (fr) {
@@ -6686,6 +6749,7 @@ async function supStart() {
 async function supStop() {
   const fr = document.getElementById('sup-frame');
   if (fr) { fr.style.display = 'none'; fr.classList.remove('ok', 'no'); }
+  document.getElementById('sup-tracker')?.classList.remove('on');
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} supScanner = null; }
 }
 
