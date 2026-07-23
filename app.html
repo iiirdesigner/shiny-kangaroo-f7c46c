@@ -1538,7 +1538,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 86</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 87</span>
   </div>
 </div>
 
@@ -2065,7 +2065,7 @@ function injectIcons(root=document) {
             <!-- Canvas -->
             <div style="background:white;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);border:1px solid var(--border)">
               <div style="font-weight:800;font-size:15px;margin-bottom:10px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">3</span> المعاينة</div>
-              <div style="border-radius:12px;background:repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50% / 20px 20px;overflow:hidden">
+              <div style="border-radius:12px;background:repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50% / 20px 20px;overflow:hidden;min-height:220px;display:flex;align-items:center;justify-content:center">
                 <canvas id="dz-canvas" style="width:100%;max-width:100%;height:auto;display:block;margin:0 auto;cursor:grab;touch-action:none;border-radius:12px;box-shadow:0 6px 20px -10px rgba(61,46,34,.35)"></canvas>
               </div>
               <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
@@ -5319,7 +5319,12 @@ function dzRenderTo(ctx, W, H, guestName, qrText) {
     ctx.font = `${fontPx}px ${font}`;
     // لو الخط ما تحمّل بعد، حمّليه وأعيدي الرسم
     if (document.fonts && !document.fonts.check(`${fontPx}px ${font}`)) {
-      document.fonts.load(`${fontPx}px "${font.replace(/['"]/g,'')}"`).then(() => { try { dzRender(); } catch(e){} });
+      const key = font + '|' + Math.round(fontPx);
+      window._dzFontTried = window._dzFontTried || new Set();
+      if (!window._dzFontTried.has(key)) {
+        window._dzFontTried.add(key);
+        document.fonts.load(`${fontPx}px "${font.replace(/['"]/g,'')}"`).then(() => { try { dzRender(); } catch(e){} });
+      }
     }
     ctx.fillStyle = document.getElementById('dz-name-hex').value;
     ctx.textAlign = 'center';
@@ -5337,20 +5342,26 @@ function dzRenderTo(ctx, W, H, guestName, qrText) {
 }
 
 function dzRender() {
-  clearTimeout(window._dzSaveT);
-  window._dzSaveT = setTimeout(dzSaveDesign, 1200);   // حفظ تلقائي بعد التعديل
   if (!dzImage) return;
+  clearTimeout(window._dzSaveT);
+  window._dzSaveT = setTimeout(dzSaveDesign, 1500);   // حفظ تلقائي بعد التعديل
   const canvas = document.getElementById('dz-canvas');
 
   // نرسم بدقة الجهاز الحقيقية — يمنع البكسلة على شاشات الجوال عالية الدقة
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
-  const cssW = Math.min(canvas.parentElement?.clientWidth || 900, 900);
+  const avail = canvas.parentElement?.clientWidth || 0;
+  const cssW = Math.min(avail > 40 ? avail : 900, 900);
   const ratio = dzImage.height / dzImage.width;
+  const targetW = Math.round(cssW * dpr);
+  const targetH = Math.round(cssW * ratio * dpr);
 
-  canvas.style.width = cssW + 'px';
-  canvas.style.height = Math.round(cssW * ratio) + 'px';
-  canvas.width  = Math.round(cssW * dpr);
-  canvas.height = Math.round(cssW * ratio * dpr);
+  // نغيّر المقاس فقط لو تغيّر فعلاً — يمنع اهتزاز الصفحة
+  if (canvas.width !== targetW || canvas.height !== targetH) {
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = Math.round(cssW * ratio) + 'px';
+    canvas.width  = targetW;
+    canvas.height = targetH;
+  }
 
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = true;
