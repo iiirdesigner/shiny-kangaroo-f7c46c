@@ -195,8 +195,10 @@
 
   /* ===== SCANNER ===== */
   .scanner-container { background:black; border-radius:var(--radius); overflow:hidden; position:relative; max-width:400px; margin:0 auto; }
-  #qr-reader { width:100%; position:relative; border-radius:18px; overflow:hidden; }
-  #qr-reader video { border-radius:18px; }
+  #qr-reader { width:100%; }
+  #qr-reader video { border-radius:18px; display:block; width:100%; }
+  #qr-wrap, #sup-wrap { width:100%; }
+  #sup-reader video { border-radius:18px; display:block; width:100%; }
 
   /* إطار المسح — زوايا متوهجة زي كاميرا الجوال */
   .scan-frame {
@@ -1496,7 +1498,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 78</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 79</span>
   </div>
 </div>
 
@@ -2248,7 +2250,8 @@ function injectIcons(root=document) {
           </div>
 
           <div class="scanner-container" style="margin-top:16px">
-            <div id="qr-reader">
+            <div id="qr-wrap" style="position:relative;border-radius:18px;overflow:hidden">
+              <div id="qr-reader"></div>
               <div class="scan-frame" id="scan-frame" style="display:none">
                 <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
                 <div class="hint">وجّهي الكاميرا على الباركود</div>
@@ -6556,7 +6559,13 @@ async function showSupervisorScanner(eventId) {
         <div id="sup-msg" style="font-size:15px;color:rgba(255,255,255,0.8)"></div>
       </div>
       <div style="width:100%;max-width:380px;border-radius:16px;overflow:hidden;background:#000">
-        <div id="sup-reader"></div>
+        <div id="sup-wrap" style="position:relative;border-radius:18px;overflow:hidden">
+          <div id="sup-reader"></div>
+          <div class="scan-frame" id="sup-frame" style="display:none">
+            <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
+            <div class="hint">وجّهي الكاميرا على الباركود</div>
+          </div>
+        </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px;width:100%;max-width:380px">
         <button onclick="supStart()" style="flex:1;padding:14px;border:none;border-radius:12px;background:#4CAF50;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit"><span data-ic="camera" data-ic-size="16"></span> تشغيل المسح</button>
@@ -6579,14 +6588,32 @@ let supScanner = null;
 
 async function supStart() {
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} }
-  supScanner = new Html5Qrcode('sup-reader');
+  supScanner = new Html5Qrcode('sup-reader', { verbose: false });
   try {
-    await supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 240, height: 240 } },
-      async (code) => { await supStop(); await supProcess(code); }, () => {});
+    await supScanner.start(
+      { facingMode: 'environment' },
+      { fps: 12, qrbox: (vw, vh) => { const s = Math.floor(Math.min(vw, vh) * 0.62); return { width: s, height: s }; }, aspectRatio: 1.0 },
+      async (code) => {
+        const fr = document.getElementById('sup-frame');
+        if (fr) {
+          fr.classList.add('hit');
+          const hint = fr.querySelector('.hint');
+          if (hint) hint.textContent = 'تم التعرّف على الباركود ✓';
+        }
+        if (navigator.vibrate) navigator.vibrate(60);
+        await new Promise(r => setTimeout(r, 180));
+        await supStop(); await supProcess(code);
+      },
+      () => {}
+    );
+    const fr = document.getElementById('sup-frame');
+    if (fr) { fr.style.display = 'flex'; fr.classList.remove('hit'); }
   } catch(e) { alert('اسمحي بالوصول للكاميرا'); }
 }
 
 async function supStop() {
+  const fr = document.getElementById('sup-frame');
+  if (fr) { fr.style.display = 'none'; fr.classList.remove('hit'); }
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} supScanner = null; }
 }
 
