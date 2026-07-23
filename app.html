@@ -1489,7 +1489,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 81</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 82</span>
   </div>
 </div>
 
@@ -2016,12 +2016,9 @@ function injectIcons(root=document) {
             <!-- Canvas -->
             <div style="background:white;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid var(--border)">
               <div style="font-weight:800;font-size:15px;margin-bottom:6px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">3</span> المعاينة — اسحبي الاسم والباركود لمكانهم</div>
-              <div style="font-size:12px;color:var(--text-light);margin-bottom:12px"><span data-ic="hand" data-ic-size="16"></span> اضغطي على العنصر واسحبيه</div>
-              <div style="overflow:auto;border-radius:12px;background:repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50% / 20px 20px;display:flex;justify-content:center">
-                <div style="font-size:11.5px;color:var(--text-light);text-align:center;margin-bottom:8px;line-height:1.7">
-            <span data-ic="bulb" data-ic-size="14"></span> اسحبي الاسم أو الباركود لتحريكه — الصفحة تثبت أثناء السحب
-          </div>
-          <canvas id="dz-canvas" style="width:100%;max-width:100%;height:auto;display:block;margin:0 auto;cursor:grab;touch-action:none;border-radius:12px;box-shadow:0 6px 20px -10px rgba(61,46,34,.35)"></canvas>
+              <div style="font-size:12px;color:var(--text-light);margin-bottom:12px"><span data-ic="hand" data-ic-size="16"></span> اضغطي على الاسم أو الباركود واسحبيه — الصفحة تثبت أثناء السحب</div>
+              <div style="border-radius:12px;background:repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50% / 20px 20px;overflow:hidden">
+                <canvas id="dz-canvas" style="width:100%;max-width:100%;height:auto;display:block;margin:0 auto;cursor:grab;touch-action:none;border-radius:12px;box-shadow:0 6px 20px -10px rgba(61,46,34,.35)"></canvas>
               </div>
               <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:13px;color:var(--text-light)">معاينة باسم:</span>
