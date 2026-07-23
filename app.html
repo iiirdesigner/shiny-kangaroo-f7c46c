@@ -249,15 +249,13 @@
   /* المتتبّع — يمسك الباركود نفسه ويرسم حوله */
   .scan-frame .tracker {
     position:absolute; opacity:0; pointer-events:none;
-    transition:opacity .18s ease, transform .14s cubic-bezier(.2,.8,.2,1),
-               width .14s cubic-bezier(.2,.8,.2,1), height .14s cubic-bezier(.2,.8,.2,1),
-               left .14s cubic-bezier(.2,.8,.2,1), top .14s cubic-bezier(.2,.8,.2,1);
+    transition:opacity .15s ease;
+    will-change:left, top, width, height;
   }
   .scan-frame .tracker.on { opacity:1; }
   .scan-frame .tracker i {
     position:absolute; width:22%; height:22%; min-width:16px; min-height:16px;
     border:3px solid #F5D9A8; border-radius:0;
-    filter:drop-shadow(0 2px 8px rgba(0,0,0,.55));
     transition:border-color .25s;
   }
   .scan-frame .tracker i:nth-child(1) { top:0; left:0;
@@ -1538,7 +1536,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 87</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 88</span>
   </div>
 </div>
 
@@ -4266,7 +4264,7 @@ async function startScanner() {
     await qrScanner.start(
       { facingMode: 'environment' },
       {
-        fps: 20,                                   // قراءة أسرع
+        fps: 10,                                   // قراءة أسرع
         qrbox: undefined,                          // يقرأ من كل الكاميرا — يمسك من بعيد
         disableFlip: false,                        // يقرأ الباركود المقلوب أيضاً
         videoConstraints: {
@@ -4331,7 +4329,14 @@ async function mainSearch(q) {
 
 
 // يحرّك المتتبّع فوق الباركود المكتشف
+let _trackLast = 0;
 function trackQR(decodedResult, trackerId, readerId) {
+  // نحدّ التحديث لـ12 مرة بالثانية — يمنع خنق المتصفح
+  const now = Date.now();
+  if (now - _trackLast < 80) return;
+  _trackLast = now;
+
+  try {
   const tr = document.getElementById(trackerId);
   const video = document.querySelector('#' + readerId + ' video');
   if (!tr || !video) return;
@@ -4361,6 +4366,7 @@ function trackQR(decodedResult, trackerId, readerId) {
   tr.style.width  = w + 'px';
   tr.style.height = h2 + 'px';
   tr.classList.add('on');
+  } catch (e) { /* التتبّع تحسين بصري — ما نوقف المسح لو تعثّر */ }
 }
 
 // حالة إطار المسح: null=بحث · true=مقبول · false=مرفوض
@@ -6728,7 +6734,7 @@ async function supStart() {
     await supScanner.start(
       { facingMode: 'environment' },
       {
-        fps: 20,
+        fps: 10,
         qrbox: undefined,
         disableFlip: false,
         videoConstraints: {
