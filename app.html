@@ -1452,7 +1452,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 76</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 77</span>
   </div>
 </div>
 
@@ -1981,7 +1981,10 @@ function injectIcons(root=document) {
               <div style="font-weight:800;font-size:15px;margin-bottom:6px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">3</span> المعاينة — اسحبي الاسم والباركود لمكانهم</div>
               <div style="font-size:12px;color:var(--text-light);margin-bottom:12px"><span data-ic="hand" data-ic-size="16"></span> اضغطي على العنصر واسحبيه</div>
               <div style="overflow:auto;border-radius:12px;background:repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50% / 20px 20px;display:flex;justify-content:center">
-                <canvas id="dz-canvas" style="max-width:100%;height:auto;cursor:grab;touch-action:none"></canvas>
+                <div style="font-size:11.5px;color:var(--text-light);text-align:center;margin-bottom:8px;line-height:1.7">
+            <span data-ic="bulb" data-ic-size="14"></span> اسحبي الاسم أو الباركود لتحريكه — الصفحة تثبت أثناء السحب
+          </div>
+          <canvas id="dz-canvas" style="max-width:100%;height:auto;cursor:grab;touch-action:none"></canvas>
               </div>
               <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:13px;color:var(--text-light)">معاينة باسم:</span>
@@ -5204,6 +5207,12 @@ function dzSetupDrag() {
   if (canvas._dragSetup) return;
   canvas._dragSetup = true;
 
+  // نمنع المتصفح من تفسير السحب كتمرير للصفحة (الحل الأساسي للجوال)
+  canvas.style.touchAction = 'none';
+  canvas.style.webkitUserSelect = 'none';
+  canvas.style.userSelect = 'none';
+  canvas.style.webkitTouchCallout = 'none';
+
   const getPos = (ev) => {
     const rect = canvas.getBoundingClientRect();
     const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
@@ -5216,26 +5225,42 @@ function dzSetupDrag() {
     const W = 1, H = 1;
     const qrPct = parseFloat(document.getElementById('dz-qr-size').value)/100;
     // Check QR first (smaller target usually on top)
+    // منطقة لمس أوسع — أسهل بالإصبع
+    const touchPad = ev.touches ? 0.04 : 0;
     if (document.getElementById('dz-qr-on').checked &&
-        Math.abs(p.x - dzState.qrPos.x) < qrPct*0.7 && Math.abs(p.y - dzState.qrPos.y) < qrPct*0.7) {
+        Math.abs(p.x - dzState.qrPos.x) < qrPct*0.8 + touchPad &&
+        Math.abs(p.y - dzState.qrPos.y) < qrPct*0.8 + touchPad) {
       dzState.dragging = 'qr';
     } else if (document.getElementById('dz-name-on').checked &&
-        Math.abs(p.x - dzState.namePos.x) < 0.22 && Math.abs(p.y - dzState.namePos.y) < 0.08) {
+        Math.abs(p.x - dzState.namePos.x) < 0.26 + touchPad &&
+        Math.abs(p.y - dzState.namePos.y) < 0.10 + touchPad) {
       dzState.dragging = 'name';
     }
-    if (dzState.dragging) ev.preventDefault();
+    if (dzState.dragging) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      document.body.style.overflow = 'hidden';       // نجمّد تمرير الصفحة
+      document.body.style.touchAction = 'none';
+      canvas.style.cursor = 'grabbing';
+    }
   };
 
   const move = (ev) => {
     if (!dzState.dragging) return;
     ev.preventDefault();
+    ev.stopPropagation();
     const p = getPos(ev);
     if (dzState.dragging === 'qr') dzState.qrPos = { x: Math.max(0.02, Math.min(0.98, p.x)), y: Math.max(0.02, Math.min(0.98, p.y)) };
     else dzState.namePos = { x: Math.max(0.02, Math.min(0.98, p.x)), y: Math.max(0.02, Math.min(0.98, p.y)) };
     dzRender();
   };
 
-  const end = () => { dzState.dragging = null; };
+  const end = () => {
+    dzState.dragging = null;
+    document.body.style.overflow = '';               // نرجّع التمرير
+    document.body.style.touchAction = '';
+    canvas.style.cursor = 'grab';
+  };
 
   canvas.addEventListener('mousedown', start);
   canvas.addEventListener('mousemove', move);
@@ -5243,6 +5268,9 @@ function dzSetupDrag() {
   canvas.addEventListener('touchstart', start, { passive: false });
   canvas.addEventListener('touchmove', move, { passive: false });
   canvas.addEventListener('touchend', end);
+  canvas.addEventListener('touchcancel', end);
+  window.addEventListener('touchend', end);
+  canvas.style.cursor = 'grab';
 }
 
 // ═══════════════════════════════════════════════════════════════
