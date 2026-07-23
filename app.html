@@ -195,7 +195,51 @@
 
   /* ===== SCANNER ===== */
   .scanner-container { background:black; border-radius:var(--radius); overflow:hidden; position:relative; max-width:400px; margin:0 auto; }
-  #qr-reader { width:100%; }
+  #qr-reader { width:100%; position:relative; border-radius:18px; overflow:hidden; }
+  #qr-reader video { border-radius:18px; }
+
+  /* إطار المسح — زوايا متوهجة زي كاميرا الجوال */
+  .scan-frame {
+    position:absolute; inset:0; pointer-events:none; z-index:5;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .scan-frame .box {
+    position:relative; width:62%; aspect-ratio:1;
+    max-width:270px;
+    border-radius:20px;
+    box-shadow:0 0 0 2000px rgba(0,0,0,.34);   /* تعتيم خارج المربع */
+  }
+  .scan-frame .box i {
+    position:absolute; width:30px; height:30px;
+    border:3.5px solid var(--rose); border-radius:10px;
+    animation:cornerPulse 1.8s ease-in-out infinite;
+  }
+  .scan-frame .box i:nth-child(1) { top:-2px; left:-2px;  border-right:0; border-bottom:0; }
+  .scan-frame .box i:nth-child(2) { top:-2px; right:-2px; border-left:0;  border-bottom:0; }
+  .scan-frame .box i:nth-child(3) { bottom:-2px; left:-2px;  border-right:0; border-top:0; }
+  .scan-frame .box i:nth-child(4) { bottom:-2px; right:-2px; border-left:0;  border-top:0; }
+  @keyframes cornerPulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
+
+  /* خط المسح المتحرك */
+  .scan-frame .line {
+    position:absolute; left:8%; right:8%; height:2.5px; border-radius:99px;
+    background:linear-gradient(90deg, transparent, var(--rose), transparent);
+    box-shadow:0 0 12px var(--rose);
+    animation:scanSweep 2.4s ease-in-out infinite;
+  }
+  @keyframes scanSweep {
+    0%, 100% { top:8%; opacity:.35; }
+    50%      { top:90%; opacity:1; }
+  }
+
+  /* وميض أخضر عند نجاح القراءة */
+  .scan-frame.hit .box i { border-color:#22C55E; animation:none; opacity:1; }
+  .scan-frame.hit .line { display:none; }
+  .scan-frame .hint {
+    position:absolute; bottom:14px; left:0; right:0; text-align:center;
+    color:#fff; font-size:12.5px; font-weight:700;
+    text-shadow:0 2px 8px rgba(0,0,0,.7);
+  }
   .scan-result { padding:20px; border-radius:var(--radius); margin-top:16px; text-align:center; }
   .scan-result.success { background:#D1FAE5; border:2px solid #34D399; }
   .scan-result.error { background:#FEE2E2; border:2px solid #F87171; }
@@ -1452,7 +1496,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 77</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 78</span>
   </div>
 </div>
 
@@ -2204,7 +2248,12 @@ function injectIcons(root=document) {
           </div>
 
           <div class="scanner-container" style="margin-top:16px">
-            <div id="qr-reader"></div>
+            <div id="qr-reader">
+              <div class="scan-frame" id="scan-frame" style="display:none">
+                <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
+                <div class="hint">وجّهي الكاميرا على الباركود</div>
+              </div>
+            </div>
           </div>
 
           <div style="margin-top:16px;display:flex;gap:10px">
@@ -4172,20 +4221,28 @@ async function loadScannerEvents() {
 
 async function startScanner() {
   if (qrScanner) { try { await qrScanner.stop(); } catch(e) {} }
-  qrScanner = new Html5Qrcode('qr-reader');
+  qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
   try {
     await qrScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      {
+        fps: 12,
+        qrbox: (vw, vh) => { const s = Math.floor(Math.min(vw, vh) * 0.62); return { width: s, height: s }; },
+        aspectRatio: 1.0
+      },
       onScanSuccess,
       () => {}
     );
+    const fr = document.getElementById('scan-frame');
+    if (fr) { fr.style.display = 'flex'; fr.classList.remove('hit'); }
   } catch(e) {
     alert('يرجى السماح بالوصول للكاميرا');
   }
 }
 
 async function stopScanner() {
+  const fr = document.getElementById('scan-frame');
+  if (fr) { fr.style.display = 'none'; fr.classList.remove('hit'); }
   if (qrScanner) {
     try { await qrScanner.stop(); } catch(e) {}
     qrScanner = null;
@@ -4193,6 +4250,16 @@ async function stopScanner() {
 }
 
 async function onScanSuccess(code) {
+  // إشارة نجاح فورية: الزوايا تصير خضراء + اهتزاز خفيف
+  const fr = document.getElementById('scan-frame');
+  if (fr) {
+    fr.classList.add('hit');
+    const hint = fr.querySelector('.hint');
+    if (hint) hint.textContent = 'تم التعرّف على الباركود ✓';
+  }
+  if (navigator.vibrate) navigator.vibrate(60);
+  await new Promise(r => setTimeout(r, 180));   // لحظة يشوف فيها التأكيد
+
   await stopScanner();
   await processScan(code);
 }
