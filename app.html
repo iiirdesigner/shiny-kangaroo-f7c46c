@@ -196,65 +196,8 @@
   /* ===== SCANNER ===== */
   .scanner-container { background:black; border-radius:var(--radius); overflow:hidden; position:relative; max-width:400px; margin:0 auto; }
   #qr-reader { width:100%; }
-  #qr-reader video { border-radius:18px; display:block; width:100%; }
-  #qr-wrap, #sup-wrap { width:100%; }
-  #sup-reader video { border-radius:18px; display:block; width:100%; }
 
-  /* إطار المسح — ذهبي فخم واسع */
-  .scan-frame { position:absolute; inset:0; pointer-events:none; z-index:5; }
-
-  .scan-frame .box {
-    position:absolute; left:50%; top:45%; transform:translate(-50%,-50%);
-    width:78%; aspect-ratio:1; max-width:330px;
-    border-radius:26px;
-    box-shadow:0 0 0 2000px rgba(10,8,6,.42);
-    transition:box-shadow .35s ease;
-  }
-
-  /* الزوايا الذهبية — رفيعة وطويلة */
-  .scan-frame .box i {
-    position:absolute; width:44px; height:44px;
-    border:0 solid #D9B583;
-    transition:border-color .3s ease, width .3s ease, height .3s ease;
-  }
-  .scan-frame .box i:nth-child(1) { top:0; left:0;
-    border-top-width:2.5px; border-left-width:2.5px; border-radius:26px 0 0 0; }
-  .scan-frame .box i:nth-child(2) { top:0; right:0;
-    border-top-width:2.5px; border-right-width:2.5px; border-radius:0 26px 0 0; }
-  .scan-frame .box i:nth-child(3) { bottom:0; left:0;
-    border-bottom-width:2.5px; border-left-width:2.5px; border-radius:0 0 0 26px; }
-  .scan-frame .box i:nth-child(4) { bottom:0; right:0;
-    border-bottom-width:2.5px; border-right-width:2.5px; border-radius:0 0 26px 0; }
-
-  /* تنفّس هادئ أثناء البحث */
-  .scan-frame:not(.ok):not(.no) .box i { animation:frameBreathe 2.6s ease-in-out infinite; }
-  @keyframes frameBreathe { 0%,100% { opacity:.7; } 50% { opacity:1; } }
-
-  .scan-frame .line { display:none; }
-
-  /* ✅ مقبول — أخضر */
-  .scan-frame.ok .box i { border-color:#34D399; width:52px; height:52px; animation:none; opacity:1; }
-  .scan-frame.ok .box   { box-shadow:0 0 0 2000px rgba(6,32,22,.62); }
-
-  /* ⛔ مرفوض — أحمر */
-  .scan-frame.no .box i { border-color:#F87171; width:52px; height:52px; animation:none; opacity:1; }
-  .scan-frame.no .box   { box-shadow:0 0 0 2000px rgba(40,10,10,.62); animation:frameShake .45s ease; }
-  @keyframes frameShake {
-    0%,100% { transform:translate(-50%,-50%); }
-    20% { transform:translate(calc(-50% - 9px),-50%); }
-    45% { transform:translate(calc(-50% + 9px),-50%); }
-    70% { transform:translate(calc(-50% - 5px),-50%); }
-  }
-
-  .scan-frame .hint {
-    position:absolute; bottom:18px; left:0; right:0; text-align:center;
-    color:rgba(255,255,255,.94); font-size:12px; font-weight:700;
-    letter-spacing:.2px; text-shadow:0 1px 8px rgba(0,0,0,.85);
-    transition:color .3s;
-  }
-  .scan-frame.ok .hint { color:#6EE7B7; }
-  .scan-frame.no .hint { color:#FCA5A5; }
-
+  #qr-reader { width:100%; }
 
   .scan-result { padding:20px; border-radius:var(--radius); margin-top:16px; text-align:center; }
   .scan-result.success { background:#D1FAE5; border:2px solid #34D399; }
@@ -1512,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 89</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 90</span>
   </div>
 </div>
 
@@ -2260,13 +2203,7 @@ function injectIcons(root=document) {
           </div>
 
           <div class="scanner-container" style="margin-top:16px">
-            <div id="qr-wrap" style="position:relative;border-radius:18px;overflow:hidden">
-              <div id="qr-reader"></div>
-              <div class="scan-frame" id="scan-frame" style="display:none">
-                <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
-                <div class="hint">وجّهي الكاميرا — يقرأ من أي مسافة</div>
-              </div>
-            </div>
+            <div id="qr-reader"></div>
           </div>
 
           <div style="margin-top:16px;display:flex;gap:10px">
@@ -4234,40 +4171,20 @@ async function loadScannerEvents() {
 
 async function startScanner() {
   if (qrScanner) { try { await qrScanner.stop(); } catch(e) {} }
-  qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
+  qrScanner = new Html5Qrcode('qr-reader');
   try {
     await qrScanner.start(
       { facingMode: 'environment' },
-      {
-        fps: 10,                                   // قراءة أسرع
-        qrbox: undefined,                          // يقرأ من كل الكاميرا — يمسك من بعيد
-        disableFlip: false,                        // يقرأ الباركود المقلوب أيضاً
-        videoConstraints: {
-          facingMode: 'environment',
-          width:  { ideal: 1920 },                 // دقة عالية = يقرأ الباركود الصغير
-          height: { ideal: 1080 },
-          focusMode: 'continuous'                  // تركيز تلقائي مستمر
-        },
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }   // محرك الجهاز الأسرع
-      },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
       onScanSuccess,
       () => {}
     );
-    const fr = document.getElementById('scan-frame');
-    if (fr) {
-      fr.style.display = 'block';
-      fr.classList.remove('ok', 'no');
-      const hint = fr.querySelector('.hint');
-      if (hint) hint.textContent = 'وجّهي الكاميرا — يقرأ من أي مسافة';
-    }
   } catch(e) {
     alert('يرجى السماح بالوصول للكاميرا');
   }
 }
 
 async function stopScanner() {
-  const fr = document.getElementById('scan-frame');
-  if (fr) { fr.style.display = 'none'; fr.classList.remove('ok', 'no'); }
   if (qrScanner) {
     try { await qrScanner.stop(); } catch(e) {}
     qrScanner = null;
@@ -4275,9 +4192,8 @@ async function stopScanner() {
 }
 
 async function onScanSuccess(code) {
-  const hint = document.getElementById('scan-frame')?.querySelector('.hint');
-  if (hint) hint.textContent = 'جاري التحقق...';
-  await processScan(code);   // النتيجة هي اللي تلوّن الإطار
+  await stopScanner();
+  await processScan(code);
 }
 
 let _mainSearchTimer = null;
@@ -4303,21 +4219,6 @@ async function mainSearch(q) {
 
 
 // يحرّك المتتبّع فوق الباركود المكتشف
-// حالة إطار المسح: null=بحث · true=مقبول · false=مرفوض
-function setScanFrame(state, text, frameId) {
-  const fr = document.getElementById(frameId || 'scan-frame');
-  if (!fr) return;
-  fr.classList.remove('ok', 'no');
-  if (state === true)  fr.classList.add('ok');
-  if (state === false) fr.classList.add('no');
-  const hint = fr.querySelector('.hint');
-  if (hint) hint.textContent = text || 'وجّهي الكاميرا على الباركود';
-  if (navigator.vibrate) {
-    if (state === true)  navigator.vibrate(70);
-    if (state === false) navigator.vibrate([50, 60, 50]);
-  }
-}
-
 async function processScan(code) {
   // Extract QR code from URL if needed
   let qrCode = code;
@@ -4335,28 +4236,12 @@ async function processScan(code) {
     ev = evRow || {};
   }
   if (selectedEvent && gRow && gRow.event_id !== selectedEvent) {
-    setScanFrame(false, 'باركود لمناسبة أخرى');
-    await new Promise(r => setTimeout(r, 620));
-    await stopScanner();
     showScanOverlay({ status: 'wrong_event', guest: gRow }, ev);
     return;
   }
 
   const { data } = await db.rpc('scan_qr_code', { qr_code_input: qrCode });
   // نفس شاشات المشرفة الفخمة (تم التحقق / تم المسح سابقاً) داخل الموقع
-  // نلوّن الإطار حسب النتيجة: أخضر مقبول · أحمر مرفوض
-  const st = data?.status;
-  const noTexts = {
-    already_used: 'تم المسح سابقاً',
-    invalid: 'باركود غير صالح',
-    wrong_event: 'باركود لمناسبة أخرى',
-    wrong_date: 'التاريخ غير مطابق',
-    wrong_time: 'خارج وقت الدخول'
-  };
-  setScanFrame(st === 'success', st === 'success' ? 'تم القبول — أهلاً بك' : (noTexts[st] || 'غير مقبول'));
-  await new Promise(r => setTimeout(r, 620));   // لحظة تشوف فيها اللون
-
-  await stopScanner();
   showScanOverlay(data, ev);
 }
 
@@ -6633,13 +6518,7 @@ async function showSupervisorScanner(eventId) {
         <div id="sup-msg" style="font-size:15px;color:rgba(255,255,255,0.8)"></div>
       </div>
       <div style="width:100%;max-width:380px;border-radius:16px;overflow:hidden;background:#000">
-        <div id="sup-wrap" style="position:relative;border-radius:18px;overflow:hidden">
-          <div id="sup-reader"></div>
-          <div class="scan-frame" id="sup-frame" style="display:none">
-            <div class="box"><i></i><i></i><i></i><i></i><div class="line"></div></div>
-            <div class="hint">وجّهي الكاميرا — يقرأ من أي مسافة</div>
-          </div>
-        </div>
+        <div id="sup-reader"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px;width:100%;max-width:380px">
         <button onclick="supStart()" style="flex:1;padding:14px;border:none;border-radius:12px;background:#4CAF50;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit"><span data-ic="camera" data-ic-size="16"></span> تشغيل المسح</button>
@@ -6662,42 +6541,18 @@ let supScanner = null;
 
 async function supStart() {
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} }
-  supScanner = new Html5Qrcode('sup-reader', { verbose: false });
+  supScanner = new Html5Qrcode('sup-reader');
   try {
     await supScanner.start(
       { facingMode: 'environment' },
-      {
-        fps: 10,
-        qrbox: undefined,
-        disableFlip: false,
-        videoConstraints: {
-          facingMode: 'environment',
-          width:  { ideal: 1920 },
-          height: { ideal: 1080 },
-          focusMode: 'continuous'
-        },
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-      },
-      async (code) => {
-        const hint = document.getElementById('sup-frame')?.querySelector('.hint');
-        if (hint) hint.textContent = 'جاري التحقق...';
-        await supProcess(code);
-      },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      async (code) => { await supStop(); await supProcess(code); },
       () => {}
     );
-    const fr = document.getElementById('sup-frame');
-    if (fr) {
-      fr.style.display = 'block';
-      fr.classList.remove('ok', 'no');
-      const hint = fr.querySelector('.hint');
-      if (hint) hint.textContent = 'وجّهي الكاميرا — يقرأ من أي مسافة';
-    }
   } catch(e) { alert('اسمحي بالوصول للكاميرا'); }
 }
 
 async function supStop() {
-  const fr = document.getElementById('sup-frame');
-  if (fr) { fr.style.display = 'none'; fr.classList.remove('ok', 'no'); }
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} supScanner = null; }
 }
 
