@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 98</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 100</span>
   </div>
 </div>
 
@@ -3779,16 +3779,14 @@ async function loadGuests() {
   while (true) {
     const { data, error } = await db.from('guests').select('*')
       .eq('event_id', currentEventId)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .range(from, from + PAGE - 1);
     if (error || !data || data.length === 0) break;
     allGuests.push(...data);
     if (data.length < PAGE) break;
     from += PAGE;
   }
-  // نرتّب رقمياً بالاسم (1،2،3…) — نفس ترتيب التنسيق، فما يتلخبط
-  allGuests.sort((a, b) =>
-    String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' }));
+  // القائمة بترتيب الإضافة (زي ما كتبتها المالكة بالضبط)
 
   const { data: ev } = await db.from('events').select('wa_message').eq('id', currentEventId).single();
   window._currentWaMsg = ev?.wa_message || null;
@@ -5042,13 +5040,10 @@ async function dzLoadEvent() {
   const { data: guests } = await db.from('guests').select('*').eq('event_id', eventId)
     .order('created_at', { ascending: true });
 
-  // ترتيب طبيعي: لو الأسماء أرقام ترتب 1،2،3…100 (مو 1،10،100)
+  // بترتيب الإضافة (زي القائمة تماماً) — نشيل التكرار فقط
   const seen = new Set();
   dzGuests = (guests || [])
-    .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; })
-    .sort((a, b) =>
-      String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' })
-    );
+    .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
   document.getElementById('dz-guest-count').innerHTML = `<span data-ic="users" data-ic-size="16"></span> ${dzGuests.length} ضيفة في هذي المناسبة`;
 
   // Use event QR color as default
@@ -6507,9 +6502,10 @@ async function runBulkQR(clickEv) {
       if (error) throw error;
       _bulkQRGuests.push(...(data || chunk));
     }
-    // نرتّب رقمياً — القاعدة ترجعها بأي ترتيب، فنعيد ترتيبها 1،2،3…
+    // نرتّبها بترتيب الإنشاء (1،2،3…) — القاعدة قد ترجعها بترتيب مختلف
     _bulkQRGuests.sort((a, b) =>
       String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' }));
+    // ملاحظة: هنا الأسماء أرقام تسلسلية فالترتيب الرقمي = ترتيب الإضافة
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = 'إنشاء الأكواد'; }
     return alert('تعذّر الحفظ: ' + (e.message || e));
