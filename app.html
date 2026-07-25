@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 91</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 92</span>
   </div>
 </div>
 
@@ -3310,8 +3310,17 @@ async function loadEvents() {
   if (currentProfile?.role !== 'admin') {
     query = query.eq('organizer_id', currentUser.id);
   }
-  const { data: events } = await query;
+  const { data: events, error: evErr } = await query;
   const container = document.getElementById('events-list');
+
+  // لو فشل الجلب (شبكة/ضغط) — ما نعرض "لا مناسبات"، نعيد المحاولة
+  if (evErr) {
+    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1;background:white;border-radius:var(--radius);border:2px dashed var(--border)">
+      <div class="empty-text" style="margin-bottom:14px">جاري التحميل... أعيدي المحاولة لو تأخّر</div>
+      <button class="btn btn-secondary" onclick="loadEvents()" style="padding:12px 28px">إعادة التحميل</button>
+    </div>`;
+    return;
+  }
 
   if (!events || events.length === 0) {
     container.innerHTML = `<div class="empty-state" style="grid-column:1/-1;background:white;border-radius:var(--radius);border:2px dashed var(--border)">
@@ -5019,11 +5028,26 @@ function dzCollectDesign() {
     nameColor: val('dz-name-color'), qrColor: val('dz-qr-color'),
     nameFont: val('dz-name-font'),
     showName: chk('dz-show-name'), showQr: chk('dz-show-qr'),
-    image: dzImage ? dzImage.src : null
+    image: dzImage ? dzCompressImage(dzImage) : null
   };
 }
 
 let _dzSaving = false;
+// نضغط صورة الدعوة لحجم معقول قبل الحفظ (تُحفظ بنجاح بدل ما تتجاوز الحد)
+function dzCompressImage(img) {
+  try {
+    const maxDim = 1200;
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale), ht = Math.round(img.height * scale);
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = ht;
+    cv.getContext('2d').drawImage(img, 0, 0, w, ht);
+    return cv.toDataURL('image/jpeg', 0.82);   // أصغر بكثير من الأصل
+  } catch (e) {
+    return img.src;   // لو فشل الضغط، نرجّع الأصل
+  }
+}
+
 async function dzSaveDesign() {
   const eventId = document.getElementById('dz-event-select')?.value;
   if (!eventId || !dzImage || _dzSaving) return;
@@ -5034,8 +5058,24 @@ async function dzSaveDesign() {
 
   _dzSaving = true;
   try {
+    const { error } = await db.from('events').update({ invite_design: dzCollectDesign() }).eq('id', eventId);
+    if (error) {
+      // الحفظ فشل (غالباً الصورة كبيرة) — ما نعلّم إنه محفوظ
+      const note = document.getElementById('dz-saved-note');
+      if (note) {
+        note.textContent = 'تعذّر حفظ التنسيق — جرّبي صورة أصغر';
+        note.style.background = 'rgba(180,60,40,.92)';
+        note.style.opacity = '1';
+        note.style.transform = 'translateX(-50%) translateY(0)';
+        clearTimeout(window._dzNoteT);
+        window._dzNoteT = setTimeout(() => {
+          note.style.opacity = '0'; note.style.transform = 'translateX(-50%) translateY(12px)';
+        }, 3500);
+      }
+      _dzSaving = false;
+      return;
+    }
     window._dzLastSaved = snap;
-    await db.from('events').update({ invite_design: dzCollectDesign() }).eq('id', eventId);
     const note = document.getElementById('dz-saved-note');
     if (note) {
       note.style.opacity = '1';
