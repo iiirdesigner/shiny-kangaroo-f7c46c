@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 95</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 96</span>
   </div>
 </div>
 
@@ -3897,7 +3897,7 @@ async function bcApply() {
     for (let i = 0; i < ids.length; i += BATCH) {
       btn.textContent = `جاري التحديث... ${Math.min(i+BATCH, ids.length)}/${ids.length}`;
       const chunk = ids.slice(i, i + BATCH);
-      const { error } = await db.from('guests').update({ companions_count: n }).in('id', chunk);
+      const { error } = await db.from('guests').update({ companions_count: n, max_scans: 1 + n }).in('id', chunk);
       if (error) throw error;
     }
     closeModal('modal-bulk-comp');
@@ -4109,11 +4109,12 @@ async function saveGuest() {
   const phone = pv.phone;
 
   const editId = document.getElementById('edit-guest-id').value;
+  const _comp = parseInt(document.getElementById('guest-companions').value) || 0;
   const fields = {
     name,
     phone,
-    companions_count: parseInt(document.getElementById('guest-companions').value) || 0,
-    max_scans: parseInt(document.getElementById('guest-max-scans').value) || 1,
+    companions_count: _comp,
+    max_scans: 1 + _comp,   // الضيفة + مرافقيها
     note: document.getElementById('guest-note').value || null
   };
 
