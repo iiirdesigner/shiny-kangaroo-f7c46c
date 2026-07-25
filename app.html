@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 96</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 98</span>
   </div>
 </div>
 
@@ -3786,6 +3786,10 @@ async function loadGuests() {
     if (data.length < PAGE) break;
     from += PAGE;
   }
+  // نرتّب رقمياً بالاسم (1،2،3…) — نفس ترتيب التنسيق، فما يتلخبط
+  allGuests.sort((a, b) =>
+    String(a.name).localeCompare(String(b.name), 'ar', { numeric: true, sensitivity: 'base' }));
+
   const { data: ev } = await db.from('events').select('wa_message').eq('id', currentEventId).single();
   window._currentWaMsg = ev?.wa_message || null;
   renderGuests(allGuests);
@@ -5144,15 +5148,18 @@ let _dzSaving = false;
 // نضغط صورة الدعوة لحجم معقول قبل الحفظ (تُحفظ بنجاح بدل ما تتجاوز الحد)
 function dzCompressImage(img) {
   try {
-    const maxDim = 1200;
+    const maxDim = 900;   // كافٍ للمعاينة، حجم صغير جداً
     const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
     const w = Math.round(img.width * scale), ht = Math.round(img.height * scale);
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = ht;
     cv.getContext('2d').drawImage(img, 0, 0, w, ht);
-    return cv.toDataURL('image/jpeg', 0.82);   // أصغر بكثير من الأصل
+    let out = cv.toDataURL('image/jpeg', 0.72);
+    // أمان إضافي: لو لسا كبيرة (> 300 كيلو) نضغط أكثر
+    if (out.length > 400000) out = cv.toDataURL('image/jpeg', 0.55);
+    return out;
   } catch (e) {
-    return img.src;   // لو فشل الضغط، نرجّع الأصل
+    return null;   // لو فشل، ما نحفظ صورة ضخمة
   }
 }
 
