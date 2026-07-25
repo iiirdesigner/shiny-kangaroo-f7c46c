@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 100</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 101</span>
   </div>
 </div>
 
@@ -3771,6 +3771,15 @@ function openGuestsPage(eventId, eventName, maxCompanions) {
   loadGuests();
 }
 
+// ترتيب ذكي: لو الاسمان أرقام → رقمي (1،2،3) · غير كذا → ترتيب الإضافة
+function smartGuestSort(a, b) {
+  const na = String(a.name).trim(), nb = String(b.name).trim();
+  const bothNumbers = /^\d+$/.test(na) && /^\d+$/.test(nb);
+  if (bothNumbers) return parseInt(na) - parseInt(nb);
+  // غير رقمية: بترتيب الإضافة (الأقدم أول)
+  return new Date(a.created_at) - new Date(b.created_at);
+}
+
 async function loadGuests() {
   // جلب كل الضيوف على دفعات (يتجاوز حد 1000 لكل استعلام)
   allGuests = [];
@@ -3786,7 +3795,8 @@ async function loadGuests() {
     if (data.length < PAGE) break;
     from += PAGE;
   }
-  // القائمة بترتيب الإضافة (زي ما كتبتها المالكة بالضبط)
+  // ترتيب ذكي: أرقام رقمياً · أسماء بترتيب الإضافة
+  allGuests.sort(smartGuestSort);
 
   const { data: ev } = await db.from('events').select('wa_message').eq('id', currentEventId).single();
   window._currentWaMsg = ev?.wa_message || null;
@@ -5040,10 +5050,11 @@ async function dzLoadEvent() {
   const { data: guests } = await db.from('guests').select('*').eq('event_id', eventId)
     .order('created_at', { ascending: true });
 
-  // بترتيب الإضافة (زي القائمة تماماً) — نشيل التكرار فقط
+  // نفس الترتيب الذكي للقائمة: أرقام رقمياً · أسماء بترتيب الإضافة
   const seen = new Set();
   dzGuests = (guests || [])
-    .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
+    .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; })
+    .sort(smartGuestSort);
   document.getElementById('dz-guest-count').innerHTML = `<span data-ic="users" data-ic-size="16"></span> ${dzGuests.length} ضيفة في هذي المناسبة`;
 
   // Use event QR color as default
