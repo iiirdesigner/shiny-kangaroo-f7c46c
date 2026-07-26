@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 107</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 108</span>
   </div>
 </div>
 
@@ -5508,7 +5508,7 @@ async function dzExportAll(mode) {
     } else {
       const blob = await dzBuildZip(picked, progress, rangeLabel);
       const fname = isAll ? 'دعوات-جاهزة.zip' : `دعوات-${r.from}-${r.to}.zip`;
-      progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
+      progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة (${blob._count || picked.length} دعوة داخل الملف) — اضغطي الزر تحت للحفظ`;
       injectIcons(progress);
       dzAddSaveButton(blob, fname, rangeLabel, area);
     }
@@ -5644,22 +5644,27 @@ async function dzBuildZip(list, progress, label) {
     // PNG بدقة كاملة — نفس الطريقة الأصلية
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
 
-    // اسم فريد لكل دعوة — يمنع الكتابة فوق المكرر
-    let fn = `${g.name}.png`;
-    if (usedNames.has(fn)) {
-      const dot = fn.lastIndexOf('.');
-      let k = 2;
-      let alt;
-      do { alt = fn.slice(0, dot) + '-' + k + fn.slice(dot); k++; } while (usedNames.has(alt));
-      fn = alt;
-    }
+    // تسمية مضمونة: رقم تسلسلي + اسم منظّف من الرموز الكاسرة
+    const safe = String(g.name == null ? '' : g.name)
+      .replace(/[\/\\:*?"<>|\r\n\t]/g, ' ')   // رموز تكسر الملفات
+      .replace(/\s+/g, ' ').trim().slice(0, 40) || 'دعوة';
+    let fn = String(i + 1).padStart(3, '0') + '-' + safe + '.png';
+    if (usedNames.has(fn)) fn = String(i + 1).padStart(3, '0') + '-' + safe + '-' + i + '.png';
     usedNames.add(fn);
 
     zip.file(fn, blob);
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
   canvas.width = canvas.height = 1;   // نحرر الذاكرة
-  return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+
+  // تحقق: كم دعوة فعلياً داخل الملف؟
+  const count = Object.keys(zip.files).length;
+  if (count < list.length) {
+    progress.innerHTML = `<div style="color:#B45309;font-weight:800">تنبيه: الملف فيه ${count} من ${list.length} — أعيدي المحاولة</div>`;
+  }
+  const out = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+  out._count = count;
+  return out;
 }
 
 // يبني PDF — كل دعوة بصفحة كاملة بجودة عالية
