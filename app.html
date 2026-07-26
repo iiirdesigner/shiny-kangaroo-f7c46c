@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 101</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 102</span>
   </div>
 </div>
 
@@ -5154,18 +5154,19 @@ let _dzSaving = false;
 // نضغط صورة الدعوة لحجم معقول قبل الحفظ (تُحفظ بنجاح بدل ما تتجاوز الحد)
 function dzCompressImage(img) {
   try {
-    const maxDim = 900;   // كافٍ للمعاينة، حجم صغير جداً
+    // دقة عالية تكفي للطباعة والتصدير بدون تغبيش
+    const maxDim = 2000;
     const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
     const w = Math.round(img.width * scale), ht = Math.round(img.height * scale);
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = ht;
-    cv.getContext('2d').drawImage(img, 0, 0, w, ht);
-    let out = cv.toDataURL('image/jpeg', 0.72);
-    // أمان إضافي: لو لسا كبيرة (> 300 كيلو) نضغط أكثر
-    if (out.length > 400000) out = cv.toDataURL('image/jpeg', 0.55);
-    return out;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, ht);
+    return cv.toDataURL('image/jpeg', 0.92);   // جودة عالية
   } catch (e) {
-    return null;   // لو فشل، ما نحفظ صورة ضخمة
+    return null;
   }
 }
 
@@ -5235,6 +5236,7 @@ async function dzLoadSavedDesign(eventId) {
       const img = new Image();
       img.onload = () => {
         dzImage = img;
+        dzImage._isOriginal = false;   // نسخة محفوظة — للأفضل ارفعي الأصل
         const ed = document.getElementById('dz-editor');
         if (ed) ed.style.display = 'block';
         dzSetupDrag();
@@ -5257,6 +5259,7 @@ function dzLoadImage(input) {
     const img = new Image();
     img.onload = () => {
       dzImage = img;
+      dzImage._isOriginal = true;   // الأصل الكامل — يُستخدم للتصدير بأعلى جودة
       document.getElementById('dz-editor').style.display = 'block';
       dzRender();
       dzSetupDrag();
@@ -5614,6 +5617,8 @@ async function dzBuildImages(list, progress, label, startNum) {
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';   // أعلى جودة رسم
   const out = [];
 
   for (let i = 0; i < list.length; i++) {
