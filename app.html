@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 106</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 107</span>
   </div>
 </div>
 
@@ -5507,7 +5507,7 @@ async function dzExportAll(mode) {
       injectIcons(progress);
     } else {
       const blob = await dzBuildZip(picked, progress, rangeLabel);
-      const fname = isAll ? 'دعوات.zip' : `دعوات-${r.from}-${r.to}.zip`;
+      const fname = isAll ? 'دعوات-جاهزة.zip' : `دعوات-${r.from}-${r.to}.zip`;
       progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
       injectIcons(progress);
       dzAddSaveButton(blob, fname, rangeLabel, area);
@@ -5641,10 +5641,11 @@ async function dzBuildZip(list, progress, label) {
       `<div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">` +
       `<div style="height:100%;width:${pctz}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
+    // PNG بدقة كاملة — نفس الطريقة الأصلية
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
 
-    // اسم فريد لكل دعوة — يمنع الكتابة فوق المكرر (كان يضيّع دعوات)
-    let fn = dzFileName(g.name, i + 1);
+    // اسم فريد لكل دعوة — يمنع الكتابة فوق المكرر
+    let fn = `${g.name}.png`;
     if (usedNames.has(fn)) {
       const dot = fn.lastIndexOf('.');
       let k = 2;
