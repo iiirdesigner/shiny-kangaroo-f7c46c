@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 105</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 106</span>
   </div>
 </div>
 
@@ -5597,6 +5597,7 @@ async function dzBuildImages(list, progress, label, startNum) {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   const out = [];
+  const usedImgNames = new Set();
 
   for (let i = 0; i < list.length; i++) {
     const g = list[i];
@@ -5607,7 +5608,15 @@ async function dzBuildImages(list, progress, label, startNum) {
       `<div style="height:100%;width:${pct}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
-    out.push(new File([blob], dzFileName(g.name, (startNum || 1) + i), { type: 'image/jpeg' }));
+    let fnm = dzFileName(g.name, (startNum || 1) + i);
+    if (usedImgNames.has(fnm)) {
+      const d = fnm.lastIndexOf('.');
+      let k = 2, alt;
+      do { alt = fnm.slice(0, d) + '-' + k + fnm.slice(d); k++; } while (usedImgNames.has(alt));
+      fnm = alt;
+    }
+    usedImgNames.add(fnm);
+    out.push(new File([blob], fnm, { type: 'image/jpeg' }));
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
   canvas.width = canvas.height = 1;
@@ -5618,6 +5627,7 @@ async function dzBuildImages(list, progress, label, startNum) {
 // يبني ZIP من صور JPEG عالية الجودة
 async function dzBuildZip(list, progress, label) {
   const zip = new JSZip();
+  const usedNames = new Set();
   const W = dzImage.width, H = dzImage.height;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -5632,7 +5642,19 @@ async function dzBuildZip(list, progress, label) {
       `<div style="height:100%;width:${pctz}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
-    zip.file(dzFileName(g.name, i + 1), blob);
+
+    // اسم فريد لكل دعوة — يمنع الكتابة فوق المكرر (كان يضيّع دعوات)
+    let fn = dzFileName(g.name, i + 1);
+    if (usedNames.has(fn)) {
+      const dot = fn.lastIndexOf('.');
+      let k = 2;
+      let alt;
+      do { alt = fn.slice(0, dot) + '-' + k + fn.slice(dot); k++; } while (usedNames.has(alt));
+      fn = alt;
+    }
+    usedNames.add(fn);
+
+    zip.file(fn, blob);
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
   canvas.width = canvas.height = 1;   // نحرر الذاكرة
