@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 102</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 104</span>
   </div>
 </div>
 
@@ -5154,7 +5154,7 @@ let _dzSaving = false;
 // نضغط صورة الدعوة لحجم معقول قبل الحفظ (تُحفظ بنجاح بدل ما تتجاوز الحد)
 function dzCompressImage(img) {
   try {
-    // دقة عالية تكفي للطباعة والتصدير بدون تغبيش
+    // جودة عالية للاسترجاع — الدعوات تطلع حادة
     const maxDim = 2000;
     const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
     const w = Math.round(img.width * scale), ht = Math.round(img.height * scale);
@@ -5164,7 +5164,7 @@ function dzCompressImage(img) {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, w, ht);
-    return cv.toDataURL('image/jpeg', 0.92);   // جودة عالية
+    return cv.toDataURL('image/jpeg', 0.92);
   } catch (e) {
     return null;
   }
@@ -5236,7 +5236,6 @@ async function dzLoadSavedDesign(eventId) {
       const img = new Image();
       img.onload = () => {
         dzImage = img;
-        dzImage._isOriginal = false;   // نسخة محفوظة — للأفضل ارفعي الأصل
         const ed = document.getElementById('dz-editor');
         if (ed) ed.style.display = 'block';
         dzSetupDrag();
@@ -5259,7 +5258,6 @@ function dzLoadImage(input) {
     const img = new Image();
     img.onload = () => {
       dzImage = img;
-      dzImage._isOriginal = true;   // الأصل الكامل — يُستخدم للتصدير بأعلى جودة
       document.getElementById('dz-editor').style.display = 'block';
       dzRender();
       dzSetupDrag();
@@ -5527,11 +5525,32 @@ async function dzExportAll(mode) {
         : `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
       injectIcons(progress);
     } else {
-      const blob = await dzBuildZip(picked, progress, rangeLabel);
-      const fname = isAll ? 'دعوات.zip' : `دعوات-${r.from}-${r.to}.zip`;
-      progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
-      injectIcons(progress);
-      dzAddSaveButton(blob, fname, rangeLabel, area);
+      // نقيس حجم دعوة واحدة، ثم نقسّم تلقائياً — جودة كاملة وملف يمرّ بالواتساب
+      const MAX_MB = 45;
+      progress.innerHTML = '<div style="font-weight:800">جاري القياس...</div>';
+      const perInvite = await dzMeasureOne(picked[0]);
+      const perPart = Math.max(1, Math.floor((MAX_MB * 1024 * 1024) / Math.max(perInvite, 1)));
+
+      if (perPart >= picked.length) {
+        // ملف واحد يكفي
+        const blob = await dzBuildZip(picked, progress, rangeLabel);
+        const fname = isAll ? 'دعوات.zip' : `دعوات-${r.from}-${r.to}.zip`;
+        progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
+        injectIcons(progress);
+        dzAddSaveButton(blob, fname, rangeLabel, area);
+      } else {
+        // نقسّمه لأجزاء بجودة كاملة
+        const parts = Math.ceil(picked.length / perPart);
+        for (let pi = 0; pi < parts; pi++) {
+          const a1 = pi * perPart, a2 = Math.min(a1 + perPart, picked.length);
+          const chunk = picked.slice(a1, a2);
+          const lbl = `${r.from + a1}–${r.from + a2 - 1}`;
+          const blob = await dzBuildZip(chunk, progress, lbl);
+          dzAddSaveButton(blob, `دعوات-${r.from + a1}-${r.from + a2 - 1}.zip`, lbl, area);
+        }
+        progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> جاهزة في ${parts} ملفات — اضغطي كل زر لحفظ ملفه`;
+        injectIcons(progress);
+      }
     }
   } catch (e) {
     progress.textContent = 'تعذّر التجهيز: ' + (e.message || e) + ' — جرّبي نطاقاً أصغر.';
@@ -5618,7 +5637,7 @@ async function dzBuildImages(list, progress, label, startNum) {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';   // أعلى جودة رسم
+  ctx.imageSmoothingQuality = 'high';
   const out = [];
 
   for (let i = 0; i < list.length; i++) {
@@ -5637,6 +5656,24 @@ async function dzBuildImages(list, progress, label, startNum) {
   return out;
 }
 
+
+// يقيس حجم دعوة واحدة بجودة التصدير — لتحديد حجم الأجزاء
+async function dzMeasureOne(g) {
+  try {
+    const W = dzImage.width, H = dzImage.height;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.95));
+    cv.width = cv.height = 1;
+    return blob ? blob.size : 500000;
+  } catch (e) {
+    return 500000;   // تقدير آمن لو فشل القياس
+  }
+}
 
 // يبني ZIP من صور JPEG عالية الجودة
 async function dzBuildZip(list, progress, label) {
