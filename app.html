@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 108</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 109</span>
   </div>
 </div>
 
@@ -1986,6 +1986,28 @@ function injectIcons(root=document) {
               <div style="border-radius:12px;background:repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50% / 20px 20px;overflow:hidden;min-height:220px;display:flex;align-items:center;justify-content:center">
                 <canvas id="dz-canvas" style="width:100%;max-width:100%;height:auto;display:block;margin:0 auto;cursor:grab;touch-action:none;border-radius:12px;box-shadow:0 6px 20px -10px rgba(61,46,34,.35)"></canvas>
               </div>
+
+              <!-- تحكم دقيق: اختاري العنصر ثم وسّطي أو حرّكي بالأسهم -->
+              <div style="margin-top:12px;background:var(--rose-light);border-radius:12px;padding:10px">
+                <div style="display:flex;gap:6px;margin-bottom:8px">
+                  <button type="button" class="btn btn-sm" id="dz-sel-name" onclick="dzPick('name')" style="flex:1;padding:9px;font-size:12.5px;font-weight:700;background:var(--rose);color:#fff;border:none;border-radius:9px">الاسم</button>
+                  <button type="button" class="btn btn-sm" id="dz-sel-qr" onclick="dzPick('qr')" style="flex:1;padding:9px;font-size:12.5px;font-weight:700;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:9px">الباركود</button>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:8px">
+                  <button type="button" onclick="dzCenter('x')" style="flex:1;padding:9px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:9px">توسيط أفقي</button>
+                  <button type="button" onclick="dzCenter('y')" style="flex:1;padding:9px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:9px">توسيط رأسي</button>
+                  <button type="button" onclick="dzCenter('both')" style="flex:1;padding:9px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:9px">توسيط كامل</button>
+                </div>
+                <div style="display:flex;gap:6px;justify-content:center;align-items:center">
+                  <button type="button" onclick="dzNudge(-1,0)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">◀</button>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <button type="button" onclick="dzNudge(0,-1)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">▲</button>
+                    <button type="button" onclick="dzNudge(0,1)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">▼</button>
+                  </div>
+                  <button type="button" onclick="dzNudge(1,0)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">▶</button>
+                </div>
+              </div>
+
               <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:13px;color:var(--text-light)">معاينة باسم:</span>
                 <select class="search-input" id="dz-preview-guest" onchange="dzRender()" style="flex:1;min-width:150px"></select>
@@ -5379,6 +5401,17 @@ function dzDraw() {
     ctx.strokeRect(dzState.qrPos.x*W - qrPx/2 - 4, dzState.qrPos.y*H - qrPx/2 - 4, qrPx + 8, qrPx + 8);
     ctx.setLineDash([]);
   }
+
+  // خطوط المنتصف الإرشادية — تظهر لحظة الالتقاط (زي كانفا)
+  if (dzState.snapX || dzState.snapY) {
+    ctx.save();
+    ctx.strokeStyle = '#22C55E';
+    ctx.lineWidth = Math.max(2, W * 0.004);
+    ctx.setLineDash([]);
+    if (dzState.snapX) { ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke(); }
+    if (dzState.snapY) { ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke(); }
+    ctx.restore();
+  }
 }
 
 // إعادة رسم المعاينة عند تغيّر حجم النافذة أو دوران الجوال
@@ -5388,6 +5421,46 @@ if (!window._dzResizeBound) {
   window.addEventListener('resize', () => {
     clearTimeout(_rt);
     _rt = setTimeout(() => { if (typeof dzImage !== 'undefined' && dzImage) dzRender(); }, 180);
+  });
+}
+
+// ── تحكم دقيق بالاسم والباركود ──
+let dzPicked = 'name';
+
+function dzPick(which) {
+  dzPicked = which;
+  const n = document.getElementById('dz-sel-name'), q = document.getElementById('dz-sel-qr');
+  const on = 'background:var(--rose);color:#fff;border:none';
+  const off = 'background:#fff;color:var(--text);border:1px solid var(--border)';
+  if (n) n.style.cssText = `flex:1;padding:9px;font-size:12.5px;font-weight:700;border-radius:9px;${which==='name'?on:off}`;
+  if (q) q.style.cssText = `flex:1;padding:9px;font-size:12.5px;font-weight:700;border-radius:9px;${which==='qr'?on:off}`;
+}
+
+function dzCenter(axis) {
+  const t = dzPicked === 'qr' ? dzState.qrPos : dzState.namePos;
+  if (axis === 'x' || axis === 'both') t.x = 0.5;
+  if (axis === 'y' || axis === 'both') t.y = 0.5;
+  dzRender();
+}
+
+function dzNudge(dx, dy) {
+  const STEP = 0.005;   // خطوة دقيقة
+  const t = dzPicked === 'qr' ? dzState.qrPos : dzState.namePos;
+  t.x = Math.max(0.02, Math.min(0.98, t.x + dx * STEP));
+  t.y = Math.max(0.02, Math.min(0.98, t.y + dy * STEP));
+  dzRender();
+}
+
+// أسهم الكيبورد للتحكم الدقيق
+if (!window._dzKeysBound) {
+  window._dzKeysBound = true;
+  document.addEventListener('keydown', (e) => {
+    const page = document.getElementById('page-designer');
+    if (!page || page.style.display === 'none' || !dzImage) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+    const map = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] };
+    if (map[e.key]) { e.preventDefault(); dzNudge(map[e.key][0], map[e.key][1]); }
   });
 }
 
@@ -5426,6 +5499,7 @@ function dzSetupDrag() {
       dzState.dragging = 'name';
     }
     if (dzState.dragging) {
+      dzPick(dzState.dragging);                      // يتحدد تلقائياً للتوسيط والأسهم
       ev.preventDefault();
       ev.stopPropagation();
       document.body.style.overflow = 'hidden';       // نجمّد تمرير الصفحة
@@ -5439,16 +5513,28 @@ function dzSetupDrag() {
     ev.preventDefault();
     ev.stopPropagation();
     const p = getPos(ev);
-    if (dzState.dragging === 'qr') dzState.qrPos = { x: Math.max(0.02, Math.min(0.98, p.x)), y: Math.max(0.02, Math.min(0.98, p.y)) };
-    else dzState.namePos = { x: Math.max(0.02, Math.min(0.98, p.x)), y: Math.max(0.02, Math.min(0.98, p.y)) };
+
+    // التقاط المركز: لو قربتِ من المنتصف يلتصق فيه (زي كانفا)
+    const SNAP = 0.022;
+    let nx = Math.max(0.02, Math.min(0.98, p.x));
+    let ny = Math.max(0.02, Math.min(0.98, p.y));
+    dzState.snapX = Math.abs(nx - 0.5) < SNAP;
+    dzState.snapY = Math.abs(ny - 0.5) < SNAP;
+    if (dzState.snapX) nx = 0.5;
+    if (dzState.snapY) ny = 0.5;
+
+    if (dzState.dragging === 'qr') dzState.qrPos = { x: nx, y: ny };
+    else dzState.namePos = { x: nx, y: ny };
     dzRender();
   };
 
   const end = () => {
     dzState.dragging = null;
+    dzState.snapX = dzState.snapY = false;
     document.body.style.overflow = '';               // نرجّع التمرير
     document.body.style.touchAction = '';
     canvas.style.cursor = 'grab';
+    dzRender();
   };
 
   canvas.addEventListener('mousedown', start);
