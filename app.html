@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 109</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 110</span>
   </div>
 </div>
 
@@ -1987,25 +1987,10 @@ function injectIcons(root=document) {
                 <canvas id="dz-canvas" style="width:100%;max-width:100%;height:auto;display:block;margin:0 auto;cursor:grab;touch-action:none;border-radius:12px;box-shadow:0 6px 20px -10px rgba(61,46,34,.35)"></canvas>
               </div>
 
-              <!-- تحكم دقيق: اختاري العنصر ثم وسّطي أو حرّكي بالأسهم -->
-              <div style="margin-top:12px;background:var(--rose-light);border-radius:12px;padding:10px">
-                <div style="display:flex;gap:6px;margin-bottom:8px">
-                  <button type="button" class="btn btn-sm" id="dz-sel-name" onclick="dzPick('name')" style="flex:1;padding:9px;font-size:12.5px;font-weight:700;background:var(--rose);color:#fff;border:none;border-radius:9px">الاسم</button>
-                  <button type="button" class="btn btn-sm" id="dz-sel-qr" onclick="dzPick('qr')" style="flex:1;padding:9px;font-size:12.5px;font-weight:700;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:9px">الباركود</button>
-                </div>
-                <div style="display:flex;gap:6px;margin-bottom:8px">
-                  <button type="button" onclick="dzCenter('x')" style="flex:1;padding:9px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:9px">توسيط أفقي</button>
-                  <button type="button" onclick="dzCenter('y')" style="flex:1;padding:9px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:9px">توسيط رأسي</button>
-                  <button type="button" onclick="dzCenter('both')" style="flex:1;padding:9px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:9px">توسيط كامل</button>
-                </div>
-                <div style="display:flex;gap:6px;justify-content:center;align-items:center">
-                  <button type="button" onclick="dzNudge(-1,0)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">◀</button>
-                  <div style="display:flex;flex-direction:column;gap:6px">
-                    <button type="button" onclick="dzNudge(0,-1)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">▲</button>
-                    <button type="button" onclick="dzNudge(0,1)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">▼</button>
-                  </div>
-                  <button type="button" onclick="dzNudge(1,0)" style="width:42px;padding:9px;font-size:15px;font-weight:800;background:#fff;border:1px solid var(--border);border-radius:9px">▶</button>
-                </div>
+
+              <div style="display:flex;gap:8px;margin-top:12px">
+                <button type="button" onclick="dzCenterEl('name')" style="flex:1;padding:11px;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:11px;cursor:pointer">توسيط الاسم</button>
+                <button type="button" onclick="dzCenterEl('qr')" style="flex:1;padding:11px;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:11px;cursor:pointer">توسيط الباركود</button>
               </div>
 
               <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
@@ -5384,22 +5369,37 @@ function dzDraw() {
 
   dzRenderTo(ctx, canvas.width, canvas.height, name, qrText);
 
-  // Draw drag handles (light outline)
+  // إطار التحديد بمقابض — زي أدوات التصميم
   const W = canvas.width, H = canvas.height;
-  if (document.getElementById('dz-name-on').checked) {
-    ctx.strokeStyle = 'rgba(196,149,106,0.7)';
-    ctx.setLineDash([6,4]);
-    ctx.lineWidth = 1.5;
-    const fontPx = (parseFloat(document.getElementById('dz-name-size').value)/100)*W;
-    ctx.strokeRect(dzState.namePos.x*W - W*0.2, dzState.namePos.y*H - fontPx*0.8, W*0.4, fontPx*1.6);
+  const drawBox = (x, y, w, hh, active) => {
+    ctx.save();
+    ctx.strokeStyle = active ? '#C4956A' : 'rgba(196,149,106,.45)';
+    ctx.lineWidth = active ? Math.max(2, W*0.004) : Math.max(1.2, W*0.002);
+    ctx.setLineDash(active ? [] : [7,5]);
+    ctx.strokeRect(x, y, w, hh);
     ctx.setLineDash([]);
+    if (active) {
+      // مقابض الزوايا
+      const r = Math.max(5, W*0.009);
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#C4956A';
+      ctx.lineWidth = Math.max(1.5, W*0.003);
+      [[x,y],[x+w,y],[x,y+hh],[x+w,y+hh]].forEach(([px,py]) => {
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      });
+    }
+    ctx.restore();
+  };
+
+  if (document.getElementById('dz-name-on').checked) {
+    const fontPx = (parseFloat(document.getElementById('dz-name-size').value)/100)*W;
+    drawBox(dzState.namePos.x*W - W*0.2, dzState.namePos.y*H - fontPx*0.8, W*0.4, fontPx*1.6,
+            dzPicked === 'name');
   }
   if (document.getElementById('dz-qr-on').checked) {
     const qrPx = (parseFloat(document.getElementById('dz-qr-size').value)/100)*W;
-    ctx.strokeStyle = 'rgba(196,149,106,0.7)';
-    ctx.setLineDash([6,4]);
-    ctx.strokeRect(dzState.qrPos.x*W - qrPx/2 - 4, dzState.qrPos.y*H - qrPx/2 - 4, qrPx + 8, qrPx + 8);
-    ctx.setLineDash([]);
+    drawBox(dzState.qrPos.x*W - qrPx/2 - 5, dzState.qrPos.y*H - qrPx/2 - 5, qrPx + 10, qrPx + 10,
+            dzPicked === 'qr');
   }
 
   // خطوط المنتصف الإرشادية — تظهر لحظة الالتقاط (زي كانفا)
@@ -5427,19 +5427,12 @@ if (!window._dzResizeBound) {
 // ── تحكم دقيق بالاسم والباركود ──
 let dzPicked = 'name';
 
-function dzPick(which) {
-  dzPicked = which;
-  const n = document.getElementById('dz-sel-name'), q = document.getElementById('dz-sel-qr');
-  const on = 'background:var(--rose);color:#fff;border:none';
-  const off = 'background:#fff;color:var(--text);border:1px solid var(--border)';
-  if (n) n.style.cssText = `flex:1;padding:9px;font-size:12.5px;font-weight:700;border-radius:9px;${which==='name'?on:off}`;
-  if (q) q.style.cssText = `flex:1;padding:9px;font-size:12.5px;font-weight:700;border-radius:9px;${which==='qr'?on:off}`;
-}
+function dzPick(which) { dzPicked = which; }
 
-function dzCenter(axis) {
-  const t = dzPicked === 'qr' ? dzState.qrPos : dzState.namePos;
-  if (axis === 'x' || axis === 'both') t.x = 0.5;
-  if (axis === 'y' || axis === 'both') t.y = 0.5;
+function dzCenterEl(which) {
+  const t = which === 'qr' ? dzState.qrPos : dzState.namePos;
+  t.x = 0.5;
+  dzPicked = which;
   dzRender();
 }
 
@@ -5499,7 +5492,11 @@ function dzSetupDrag() {
       dzState.dragging = 'name';
     }
     if (dzState.dragging) {
-      dzPick(dzState.dragging);                      // يتحدد تلقائياً للتوسيط والأسهم
+      // نحفظ الإزاحة بين نقطة اللمس ومركز العنصر — فما يقفز (زي كانفا)
+      const cur = dzState.dragging === 'qr' ? dzState.qrPos : dzState.namePos;
+      dzState.grabDX = cur.x - p.x;
+      dzState.grabDY = cur.y - p.y;
+      dzPick(dzState.dragging);
       ev.preventDefault();
       ev.stopPropagation();
       document.body.style.overflow = 'hidden';       // نجمّد تمرير الصفحة
@@ -5514,10 +5511,10 @@ function dzSetupDrag() {
     ev.stopPropagation();
     const p = getPos(ev);
 
-    // التقاط المركز: لو قربتِ من المنتصف يلتصق فيه (زي كانفا)
+    // نحرّكه بنفس الإزاحة — يتبع الإصبع بسلاسة بدون قفز
     const SNAP = 0.022;
-    let nx = Math.max(0.02, Math.min(0.98, p.x));
-    let ny = Math.max(0.02, Math.min(0.98, p.y));
+    let nx = Math.max(0.02, Math.min(0.98, p.x + (dzState.grabDX || 0)));
+    let ny = Math.max(0.02, Math.min(0.98, p.y + (dzState.grabDY || 0)));
     dzState.snapX = Math.abs(nx - 0.5) < SNAP;
     dzState.snapY = Math.abs(ny - 0.5) < SNAP;
     if (dzState.snapX) nx = 0.5;
