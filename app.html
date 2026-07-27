@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 110</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 111</span>
   </div>
 </div>
 
@@ -1903,6 +1903,7 @@ function injectIcons(root=document) {
               <button class="btn btn-secondary btn-sm" onclick="shortenCodes()" style="padding:10px 16px"><span data-ic="link" data-ic-size="15"></span> تقصير الروابط</button>
               <button class="btn btn-secondary btn-sm" onclick="remindPending()" style="padding:10px 16px"><span data-ic="mail" data-ic-size="15"></span> تذكير من لم يرد</button>
               <button class="btn btn-secondary btn-sm" onclick="openBulkCompanions()" style="padding:10px 16px"><span data-ic="users" data-ic-size="15"></span> تعديل المرافقين</button>
+              <button class="btn btn-secondary btn-sm" onclick="openBulkDelete()" style="padding:10px 16px;color:#B42318"><span data-ic="trash" data-ic-size="15"></span> حذف مجموعة</button>
               <button class="btn btn-secondary btn-sm" onclick="exportGuests()" style="padding:10px 16px" data-ic="download" data-ic-size="16">Excel</button>
             </div>
           </div>
@@ -2391,6 +2392,30 @@ function injectIcons(root=document) {
 </div>
 
 <!-- Bulk QR Generator Modal -->
+<div id="modal-bulk-del" class="modal-overlay">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" style="color:#B42318">حذف مجموعة من الضيوف</div>
+    <p style="font-size:12.5px;color:var(--text-light);margin:0 0 12px;line-height:1.7">اختاري الضيفات المراد حذفهن ثم اضغطي حذف. <b style="color:#B42318">الحذف نهائي</b> — تُحذف الضيفة وباركودها ودعوتها.</p>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="bd-search" class="form-input" placeholder="ابحثي عن ضيفة..." style="flex:1;min-width:140px;padding:10px" oninput="bdRender()">
+      <button class="btn btn-secondary btn-sm" onclick="bdSelectAll(true)" style="padding:9px 12px;font-size:12.5px">تحديد الكل</button>
+      <button class="btn btn-secondary btn-sm" onclick="bdSelectAll(false)" style="padding:9px 12px;font-size:12.5px">إلغاء</button>
+    </div>
+
+    <div id="bd-list" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px;margin-bottom:12px"></div>
+
+    <div style="display:flex;gap:10px;align-items:center;background:#FEF2F2;border:1px solid #FECACA;padding:12px;border-radius:12px;margin-bottom:14px">
+      <span id="bd-selected" style="font-size:13px;font-weight:800;color:#B42318">0 محددة للحذف</span>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" style="flex:2" onclick="closeModal('modal-bulk-del')">إلغاء</button>
+      <button class="btn" id="bd-apply" onclick="bdApply()" style="flex:1;background:#B42318;color:#fff;border:none">حذف</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-bulk-comp" class="modal-overlay">
   <div class="modal" style="max-width:520px">
     <div class="modal-title" data-ic="users">تعديل المرافقين جماعياً</div>
@@ -3847,6 +3872,84 @@ function renderGuests(guests) {
       </td>
     </tr>
   `).join('');
+}
+
+let _bdSelected = new Set();
+
+function openBulkDelete() {
+  _bdSelected = new Set();
+  document.getElementById('bd-search').value = '';
+  bdRender();
+  openModal('modal-bulk-del');
+  injectIcons(document.getElementById('modal-bulk-del'));
+}
+
+function bdRender() {
+  const q = (document.getElementById('bd-search').value || '').trim().toLowerCase();
+  const list = document.getElementById('bd-list');
+  const guests = (allGuests || []).filter(g => !q || String(g.name).toLowerCase().includes(q));
+
+  if (!guests.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);font-size:13px">ما فيه نتائج</div>';
+    bdCount();
+    return;
+  }
+
+  list.innerHTML = guests.map(g => {
+    const on = _bdSelected.has(g.id);
+    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;${on?'background:#FEF2F2':''}" onclick="bdToggle('${g.id}',event)">
+      <input type="checkbox" ${on?'checked':''} style="width:18px;height:18px;accent-color:#B42318;pointer-events:none">
+      <span style="flex:1;font-size:13.5px;font-weight:600">${esc(g.name)}</span>
+      <span style="font-size:11.5px;color:var(--text-light)">${g.scan_count||0}/${g.max_scans||1}</span>
+    </label>`;
+  }).join('');
+  bdCount();
+}
+
+function bdToggle(id, ev) {
+  if (ev) ev.preventDefault();
+  if (_bdSelected.has(id)) _bdSelected.delete(id); else _bdSelected.add(id);
+  bdRender();
+}
+
+function bdSelectAll(on) {
+  const q = (document.getElementById('bd-search').value || '').trim().toLowerCase();
+  const guests = (allGuests || []).filter(g => !q || String(g.name).toLowerCase().includes(q));
+  if (on) guests.forEach(g => _bdSelected.add(g.id));
+  else guests.forEach(g => _bdSelected.delete(g.id));
+  bdRender();
+}
+
+function bdCount() {
+  const el = document.getElementById('bd-selected');
+  if (el) el.textContent = _bdSelected.size + ' محددة للحذف';
+}
+
+async function bdApply() {
+  if (!_bdSelected.size) return alert('اختاري ضيفة واحدة على الأقل');
+  const ids = [..._bdSelected];
+  if (!confirm(`سيتم حذف ${ids.length} ضيفة نهائياً مع باركوداتهن ودعواتهن.\n\nلا يمكن التراجع. متأكدة؟`)) return;
+
+  const btn = document.getElementById('bd-apply');
+  btn.disabled = true;
+  const orig = btn.textContent;
+
+  try {
+    const BATCH = 100;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      btn.textContent = `${Math.min(i+BATCH, ids.length)}/${ids.length}`;
+      const chunk = ids.slice(i, i + BATCH);
+      const { error } = await db.from('guests').delete().in('id', chunk);
+      if (error) throw error;
+    }
+    closeModal('modal-bulk-del');
+    await loadGuests();
+    alert(`تم حذف ${ids.length} ضيفة`);
+  } catch (e) {
+    alert('تعذّر الحذف: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 
 let _bcSelected = new Set();
