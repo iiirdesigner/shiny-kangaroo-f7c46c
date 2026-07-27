@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 111</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 112</span>
   </div>
 </div>
 
@@ -2397,21 +2397,18 @@ function injectIcons(root=document) {
     <div class="modal-title" style="color:#B42318">حذف مجموعة من الضيوف</div>
     <p style="font-size:12.5px;color:var(--text-light);margin:0 0 12px;line-height:1.7">اختاري الضيفات المراد حذفهن ثم اضغطي حذف. <b style="color:#B42318">الحذف نهائي</b> — تُحذف الضيفة وباركودها ودعوتها.</p>
 
-    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-      <input type="text" id="bd-search" class="form-input" placeholder="ابحثي عن ضيفة..." style="flex:1;min-width:140px;padding:10px" oninput="bdRender()">
-      <button class="btn btn-secondary btn-sm" onclick="bdSelectAll(true)" style="padding:9px 12px;font-size:12.5px">تحديد الكل</button>
-      <button class="btn btn-secondary btn-sm" onclick="bdSelectAll(false)" style="padding:9px 12px;font-size:12.5px">إلغاء</button>
+    <input type="text" id="bd-search" class="form-input" placeholder="ابحثي بالاسم أو الرقم..." style="width:100%;padding:12px;margin-bottom:10px" oninput="bdRender()">
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn btn-secondary" onclick="bdSelectAll(true)" style="flex:1;padding:10px;font-size:13px;font-weight:700">تحديد الكل</button>
+      <button class="btn btn-secondary" onclick="bdSelectAll(false)" style="flex:1;padding:10px;font-size:13px;font-weight:700">إلغاء التحديد</button>
     </div>
 
-    <div id="bd-list" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px;margin-bottom:12px"></div>
-
-    <div style="display:flex;gap:10px;align-items:center;background:#FEF2F2;border:1px solid #FECACA;padding:12px;border-radius:12px;margin-bottom:14px">
-      <span id="bd-selected" style="font-size:13px;font-weight:800;color:#B42318">0 محددة للحذف</span>
-    </div>
+    <div id="bd-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px;margin-bottom:14px"></div>
 
     <div style="display:flex;gap:10px">
-      <button class="btn btn-secondary" style="flex:2" onclick="closeModal('modal-bulk-del')">إلغاء</button>
-      <button class="btn" id="bd-apply" onclick="bdApply()" style="flex:1;background:#B42318;color:#fff;border:none">حذف</button>
+      <button class="btn btn-secondary" style="flex:1;padding:14px" onclick="closeModal('modal-bulk-del')">إلغاء</button>
+      <button class="btn" id="bd-apply" onclick="bdApply()" style="flex:2;padding:14px;background:#B42318;color:#fff;border:none;font-weight:800">حذف المحددات</button>
     </div>
   </div>
 </div>
@@ -3861,11 +3858,11 @@ function renderGuests(guests) {
       <td><strong>${esc(g.name)}</strong>${g.table_number ? ` <span style="background:var(--rose-light);color:var(--rose);padding:2px 10px;border-radius:12px;font-size:11.5px;font-weight:700"><span data-ic="chair" data-ic-size="16"></span> ${esc(g.table_number)}</span>` : ''}${g.rsvp_message ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;background:#FFF7ED;padding:6px 10px;border-radius:8px;border-right:3px solid var(--gold)"><span data-ic="mail" data-ic-size="16"></span> ${esc(g.rsvp_message)}</div>` : ''}</td>
       <td dir="ltr">${esc(g.phone) || '-'}</td>
       <td data-label="إجراءات" style="text-align:center">${g.companions_count}</td>
-      <td data-label="الحالة"><span class="badge badge-${g.status}">${statusText(g.status)}</span>${
+      <td data-label="الحالة"><div style="display:flex;align-items:center;gap:5px;white-space:nowrap"><span class="badge badge-${g.status}" style="font-size:11px;padding:3px 9px">${statusTextShort(g.status)}</span>${
         g.sent_at
-          ? `<span title="أُرسلت ${g.sent_count > 1 ? g.sent_count + ' مرات' : ''}" style="margin-right:6px;display:inline-flex;align-items:center;gap:3px;background:#ECFDF5;color:#059669;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700"><span data-ic="check" data-ic-size="12"></span>أُرسلت${g.sent_count > 1 ? ' ×' + g.sent_count : ''}</span>`
-          : `<span style="margin-right:6px;background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">لم تُرسل</span>`
-      }</td>
+          ? `<span title="أُرسلت ${g.sent_count > 1 ? g.sent_count + ' مرات' : ''}" style="background:#ECFDF5;color:#059669;padding:2px 7px;border-radius:7px;font-size:10.5px;font-weight:700">✓${g.sent_count > 1 ? ' ×' + g.sent_count : ''}</span>`
+          : `<span title="لم تُرسل الدعوة" style="background:#FEF3C7;color:#92400E;padding:2px 7px;border-radius:7px;font-size:10.5px;font-weight:700">لم تُرسل</span>`
+      }</div></td>
       <td style="text-align:center">${g.scan_count}/${g.max_scans}</td>
       <td>
         <button class="btn-icon" onclick="openGuestActions('${g.id}')" style="font-size:18px;padding:8px 16px;font-weight:800;letter-spacing:2px">⋯</button>
@@ -3897,10 +3894,9 @@ function bdRender() {
 
   list.innerHTML = guests.map(g => {
     const on = _bdSelected.has(g.id);
-    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;${on?'background:#FEF2F2':''}" onclick="bdToggle('${g.id}',event)">
-      <input type="checkbox" ${on?'checked':''} style="width:18px;height:18px;accent-color:#B42318;pointer-events:none">
-      <span style="flex:1;font-size:13.5px;font-weight:600">${esc(g.name)}</span>
-      <span style="font-size:11.5px;color:var(--text-light)">${g.scan_count||0}/${g.max_scans||1}</span>
+    return `<label style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-radius:10px;cursor:pointer;border-bottom:1px solid var(--border);${on?'background:#FEF2F2':''}" onclick="bdToggle('${g.id}',event)">
+      <input type="checkbox" ${on?'checked':''} style="width:20px;height:20px;accent-color:#B42318;pointer-events:none;flex-shrink:0">
+      <span style="flex:1;font-size:14px;font-weight:${on?'800':'600'};color:${on?'#B42318':'var(--text)'}">${esc(g.name)}</span>
     </label>`;
   }).join('');
   bdCount();
@@ -3921,8 +3917,12 @@ function bdSelectAll(on) {
 }
 
 function bdCount() {
-  const el = document.getElementById('bd-selected');
-  if (el) el.textContent = _bdSelected.size + ' محددة للحذف';
+  const btn = document.getElementById('bd-apply');
+  if (!btn) return;
+  const n = _bdSelected.size;
+  btn.textContent = n ? `حذف ${n} ضيفة` : 'حذف المحددات';
+  btn.style.opacity = n ? '1' : '.55';
+  btn.disabled = !n;
 }
 
 async function bdApply() {
@@ -4065,6 +4065,11 @@ function statusTextPlain(s) {
 
 function statusText(s) {
   return { pending: '<span data-ic="clock" data-ic-size="16"></span> بانتظار الرد', confirmed: '<span data-ic="check" data-ic-size="16"></span> تأكيد حضور', declined: '<span data-ic="mail" data-ic-size="16"></span> اعتذار' }[s] || s;
+}
+
+// نص مختصر للجدول — يمنع الالتفاف لسطرين
+function statusTextShort(s) {
+  return { pending: 'بانتظار', confirmed: 'حضور', declined: 'اعتذار' }[s] || s;
 }
 
 function filterGuests(q) {
