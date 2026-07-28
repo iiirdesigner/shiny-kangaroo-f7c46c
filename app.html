@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 114</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 115</span>
   </div>
 </div>
 
@@ -5698,7 +5698,7 @@ async function dzExportAll(mode) {
       injectIcons(progress);
     } else {
       // نبني على دفعات — يمنع نفاد ذاكرة الجوال مع الأعداد الكبيرة
-      const ZIP_LIMIT = 50;   // ملف واحد للأعداد المعتادة · تقسيم للكبيرة فقط (يمنع انهيار الجوال)
+      const ZIP_LIMIT = 100;   // نفس حد الاستديو — ملف واحد حتى 100 دعوة
       if (picked.length <= ZIP_LIMIT) {
         const blob = await dzBuildZip(picked, progress, rangeLabel);
         const fname = isAll ? 'دعوات-جاهزة.zip' : `دعوات-${r.from}-${r.to}.zip`;
