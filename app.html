@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 112</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 114</span>
   </div>
 </div>
 
@@ -5682,7 +5682,7 @@ async function dzExportAll(mode) {
   try {
     if (mode === 'gallery') {
       // نظام الجوال يحفظ 100 صورة كحد أقصى بالمرة — فنقسّم تلقائياً
-      const LIMIT = 100;
+      const LIMIT = 100;   // نظام الجوال يحفظ 100 صورة كحد أقصى بالمرة
       const parts = Math.ceil(picked.length / LIMIT);
       for (let k = 0; k < parts; k++) {
         const chunk = picked.slice(k * LIMIT, (k + 1) * LIMIT);
@@ -5697,11 +5697,28 @@ async function dzExportAll(mode) {
         : `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة — اضغطي الزر تحت للحفظ`;
       injectIcons(progress);
     } else {
-      const blob = await dzBuildZip(picked, progress, rangeLabel);
-      const fname = isAll ? 'دعوات-جاهزة.zip' : `دعوات-${r.from}-${r.to}.zip`;
-      progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة (${blob._count || picked.length} دعوة داخل الملف) — اضغطي الزر تحت للحفظ`;
-      injectIcons(progress);
-      dzAddSaveButton(blob, fname, rangeLabel, area);
+      // نبني على دفعات — يمنع نفاد ذاكرة الجوال مع الأعداد الكبيرة
+      const ZIP_LIMIT = 50;   // ملف واحد للأعداد المعتادة · تقسيم للكبيرة فقط (يمنع انهيار الجوال)
+      if (picked.length <= ZIP_LIMIT) {
+        const blob = await dzBuildZip(picked, progress, rangeLabel);
+        const fname = isAll ? 'دعوات-جاهزة.zip' : `دعوات-${r.from}-${r.to}.zip`;
+        progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${rangeLabel} جاهزة (${blob._count || picked.length} دعوة) — اضغطي الزر تحت للحفظ`;
+        injectIcons(progress);
+        dzAddSaveButton(blob, fname, rangeLabel, area);
+      } else {
+        const parts = Math.ceil(picked.length / ZIP_LIMIT);
+        for (let pi = 0; pi < parts; pi++) {
+          const a1 = pi * ZIP_LIMIT, a2 = Math.min(a1 + ZIP_LIMIT, picked.length);
+          const chunk = picked.slice(a1, a2);
+          const n1 = r.from + a1, n2 = r.from + a2 - 1;
+          const lbl = `الدعوات ${n1}–${n2}`;
+          const blob = await dzBuildZip(chunk, progress, lbl);
+          dzAddSaveButton(blob, `دعوات-${n1}-${n2}.zip`, lbl, area);
+          await new Promise(r2 => setTimeout(r2, 250));   // نفس للجهاز بين الدفعات
+        }
+        progress.innerHTML = `<span data-ic="check" data-ic-size="16"></span> جاهزة في ${parts} ملفات — اضغطي كل زر لحفظ ملفه`;
+        injectIcons(progress);
+      }
     }
   } catch (e) {
     progress.textContent = 'تعذّر التجهيز: ' + (e.message || e) + ' — جرّبي نطاقاً أصغر.';
@@ -5808,7 +5825,8 @@ async function dzBuildImages(list, progress, label, startNum) {
     }
     usedImgNames.add(fnm);
     out.push(new File([blob], fnm, { type: 'image/jpeg' }));
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+    if (i % 10 === 9) await new Promise(r => setTimeout(r, 60));
   }
   canvas.width = canvas.height = 1;
   return out;
@@ -5844,7 +5862,9 @@ async function dzBuildZip(list, progress, label) {
     usedNames.add(fn);
 
     zip.file(fn, blob);
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    // نعطي المتصفح فرصة يتنفّس ويحرّر الذاكرة — يمنع انهيار الصفحة
+    await new Promise(r => setTimeout(r, 0));
+    if (i % 10 === 9) await new Promise(r => setTimeout(r, 60));
   }
   canvas.width = canvas.height = 1;   // نحرر الذاكرة
 
