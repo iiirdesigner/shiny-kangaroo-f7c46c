@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 115</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 116</span>
   </div>
 </div>
 
@@ -5850,15 +5850,15 @@ async function dzBuildZip(list, progress, label) {
       `<div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">` +
       `<div style="height:100%;width:${pctz}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
     dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
-    // PNG بدقة كاملة — نفس الطريقة الأصلية
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    // JPEG بجودة 95% بدقة كاملة — وضوح ممتاز واستهلاك ذاكرة أقل بكثير
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
 
     // تسمية مضمونة: رقم تسلسلي + اسم منظّف من الرموز الكاسرة
     const safe = String(g.name == null ? '' : g.name)
       .replace(/[\/\\:*?"<>|\r\n\t]/g, ' ')   // رموز تكسر الملفات
       .replace(/\s+/g, ' ').trim().slice(0, 40) || 'دعوة';
-    let fn = String(i + 1).padStart(3, '0') + '-' + safe + '.png';
-    if (usedNames.has(fn)) fn = String(i + 1).padStart(3, '0') + '-' + safe + '-' + i + '.png';
+    let fn = String(i + 1).padStart(3, '0') + '-' + safe + '.jpg';
+    if (usedNames.has(fn)) fn = String(i + 1).padStart(3, '0') + '-' + safe + '-' + i + '.jpg';
     usedNames.add(fn);
 
     zip.file(fn, blob);
