@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 116</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 118</span>
   </div>
 </div>
 
@@ -3362,17 +3362,33 @@ async function loadOrganizerFeeds(eventIds) {
 
 // ===== EVENTS =====
 async function loadEvents() {
-  let query = db.from('events').select('*, profiles(full_name)').order('created_at', { ascending: false });
+  // نجرب استعلاماً خفيفاً (بدون صور التنسيق)، ولو فشل نرجع للمضمون
+  const LIGHT = 'id,name,event_date,event_time,venue,color,cover_image,organizer_id,max_companions,wa_message,created_at, profiles(full_name)';
+  let useLight = window._evLightOk !== false;
+  let query = db.from('events')
+    .select(useLight ? LIGHT : '*, profiles(full_name)')
+    .order('created_at', { ascending: false });
   if (currentProfile?.role !== 'admin') {
     query = query.eq('organizer_id', currentUser.id);
   }
-  const { data: events, error: evErr } = await query;
+  let { data: events, error: evErr } = await query;
+
+  // لو فشل الاستعلام الخفيف، نعيد المحاولة بالمضمون فوراً
+  if (evErr && useLight) {
+    window._evLightOk = false;
+    let q2 = db.from('events').select('*, profiles(full_name)').order('created_at', { ascending: false });
+    if (currentUser?.role !== 'admin') q2 = q2.eq('organizer_id', currentUser.id);
+    const r2 = await q2;
+    events = r2.data; evErr = r2.error;
+  }
+
   const container = document.getElementById('events-list');
 
-  // لو فشل الجلب (شبكة/ضغط) — ما نعرض "لا مناسبات"، نعيد المحاولة
+  // لو فشل الجلب فعلياً — نعرض السبب وزر إعادة
   if (evErr) {
     container.innerHTML = `<div class="empty-state" style="grid-column:1/-1;background:white;border-radius:var(--radius);border:2px dashed var(--border)">
-      <div class="empty-text" style="margin-bottom:14px">جاري التحميل... أعيدي المحاولة لو تأخّر</div>
+      <div class="empty-text" style="margin-bottom:6px">تعذّر تحميل المناسبات</div>
+      <div style="font-size:11.5px;color:var(--text-light);margin-bottom:14px;direction:ltr">${(evErr.message || '').slice(0,120)}</div>
       <button class="btn btn-secondary" onclick="loadEvents()" style="padding:12px 28px">إعادة التحميل</button>
     </div>`;
     return;
@@ -5261,11 +5277,31 @@ function dzCollectDesign() {
     nameColor: val('dz-name-color'), qrColor: val('dz-qr-color'),
     nameFont: val('dz-name-font'),
     showName: chk('dz-show-name'), showQr: chk('dz-show-qr'),
-    image: dzImage ? dzImage.src : null
+    image: dzImage ? dzStoreImage(dzImage) : null
   };
 }
 
 let _dzSaving = false;
+// نجهّز صورة التنسيق للحفظ: نفس الأبعاد، صيغة أخف — تُحفظ بنجاح وتُسترجع بسرعة
+function dzStoreImage(img) {
+  try {
+    const maxDim = 1920;   // مقاس الدعوة المعتاد — بدون تصغير فعلي
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale), ht = Math.round(img.height * scale);
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = ht;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(img, 0, 0, w, ht);
+    const out = cv.toDataURL('image/jpeg', 0.92);
+    cv.width = cv.height = 1;
+    return out;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function dzSaveDesign() {
   const eventId = document.getElementById('dz-event-select')?.value;
   if (!eventId || !dzImage || _dzSaving) return;
