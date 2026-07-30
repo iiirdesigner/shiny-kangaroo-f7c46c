@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 118</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 119</span>
   </div>
 </div>
 
@@ -3363,7 +3363,7 @@ async function loadOrganizerFeeds(eventIds) {
 // ===== EVENTS =====
 async function loadEvents() {
   // نجرب استعلاماً خفيفاً (بدون صور التنسيق)، ولو فشل نرجع للمضمون
-  const LIGHT = 'id,name,event_date,event_time,venue,color,cover_image,organizer_id,max_companions,wa_message,created_at, profiles(full_name)';
+  const LIGHT = 'id,organizer_id,name,description,event_date,location,location_lat,location_lng,max_companions,cover_image,color,is_active,rsvp_deadline,created_at,qr_color,enforce_date,enforce_time,success_image,lock_image,thanks_mode,thanks_message,wa_message,thanks_title,confirm_message,decline_message,preview_image,open_allowlist,open_intro,open_confirm_msg,open_decline_msg, profiles(full_name)';
   let useLight = window._evLightOk !== false;
   let query = db.from('events')
     .select(useLight ? LIGHT : '*, profiles(full_name)')
