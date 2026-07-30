@@ -23,7 +23,13 @@
 <meta name="twitter:image" content="https://rqr0.com/og.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+  // مصدر بديل — لو تعذّر تحميل المكتبة من الأول
+  if (typeof Html5Qrcode === 'undefined') {
+    document.write('<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"><\/script>');
+  }
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1455,7 +1461,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 121</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 123</span>
   </div>
 </div>
 
@@ -1812,7 +1818,7 @@ function injectIcons(root=document) {
         <span style="font-size:14px;font-weight:600">تحديد موقع المناسبة</span>
       </label>
       <div id="event-location-wrap" style="display:none;margin-top:10px">
-        <input type="text" id="event-location" class="form-input" placeholder="اسم القاعة أو العنوان">
+        <input type="text" id="event-location" class="form-input" placeholder="اسم القاعة، أو الصقي رابط الخريطة">
       </div>
     </div>
 
@@ -4440,6 +4446,12 @@ async function loadScannerEvents() {
 
 async function startScanner() {
   if (qrScanner) { try { await qrScanner.stop(); } catch(e) {} }
+  // نتأكد أن مكتبة الماسح تحمّلت
+  if (typeof Html5Qrcode === 'undefined') {
+    alert('تعذّر تحميل الماسح.\n\nتأكدي من الاتصال بالإنترنت وحدّثي الصفحة.\nلو تكرر، جرّبي شبكة أخرى أو متصفح آخر.');
+    return;
+  }
+
   qrScanner = new Html5Qrcode('qr-reader');
   try {
     await qrScanner.start(
@@ -4449,8 +4461,23 @@ async function startScanner() {
       () => {}
     );
   } catch(e) {
-    alert('يرجى السماح بالوصول للكاميرا');
+    qrScanner = null;
+    alert(cameraErrorMsg(e));
   }
+}
+
+// رسالة دقيقة حسب سبب فشل الكاميرا
+function cameraErrorMsg(e) {
+  const n = e && (e.name || e.message || '');
+  if (/NotAllowed|Permission|Denied/i.test(n))
+    return 'الكاميرا ممنوعة.\n\nمن إعدادات المتصفح اسمحي بالكاميرا لهذا الموقع، ثم حدّثي الصفحة.\n(آيفون: الإعدادات ← Safari ← الكاميرا ← سماح)';
+  if (/NotFound|Devices|OverconstrainedError/i.test(n))
+    return 'ما لقينا كاميرا بالجهاز.\n\nجرّبي جهازاً فيه كاميرا خلفية.';
+  if (/NotReadable|TrackStart|AbortError/i.test(n))
+    return 'الكاميرا مستخدمة من تطبيق آخر.\n\nأغلقي التطبيقات اللي تستخدم الكاميرا وحدّثي الصفحة.';
+  if (/Secure|https/i.test(n))
+    return 'الكاميرا تحتاج اتصالاً آمناً — افتحي الموقع بـ https.';
+  return 'تعذّر تشغيل الكاميرا.\n\nحدّثي الصفحة وجرّبي مرة ثانية.\nلو تكرر، أعيدي تشغيل المتصفح.';
 }
 
 async function stopScanner() {
@@ -5081,14 +5108,26 @@ async function showRsvpPage(qrCode) {
     setInterval(tick, 30000);
   }
   document.getElementById('rsvp-event-date').innerHTML = event?.event_date ? `<span data-ic="calendar" data-ic-size="16"></span> ${evDate(event.event_date).toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' })}` : '';
-  // موقع القاعة — زر يفتح الخريطة للضيفة
+  // موقع القاعة — زر يفتح الخريطة (يدعم: رابط جاهز · إحداثيات · اسم القاعة)
   const locEl = document.getElementById('rsvp-location');
   if (event?.location) {
-    const hasCoords = event.location_lat && event.location_lng;
-    const mapUrl = hasCoords
-      ? `https://www.google.com/maps/search/?api=1&query=${event.location_lat},${event.location_lng}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
-    locEl.innerHTML = `<div style="margin-top:6px"><span data-ic="pin" data-ic-size="16"></span> ${esc(event.location)}</div>
+    const raw = String(event.location).trim();
+
+    // لو فيه رابط داخل النص (خرائط جوجل أو أي رابط) نستخدمه كما هو
+    const urlMatch = raw.match(/https?:\/\/[^\s]+/i);
+    const label = raw.replace(/https?:\/\/[^\s]+/gi, '').trim();
+
+    let mapUrl;
+    if (urlMatch) {
+      mapUrl = urlMatch[0];
+    } else if (event.location_lat && event.location_lng) {
+      mapUrl = `https://www.google.com/maps/search/?api=1&query=${event.location_lat},${event.location_lng}`;
+    } else {
+      mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
+    }
+
+    const shown = label || (urlMatch ? 'موقع القاعة' : raw);
+    locEl.innerHTML = `<div style="margin-top:6px"><span data-ic="pin" data-ic-size="16"></span> ${esc(shown)}</div>
       <a href="${mapUrl}" target="_blank" rel="noopener"
          style="display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:11px 20px;background:#fff;border:1.5px solid var(--rose);color:var(--rose);border-radius:99px;font-size:13.5px;font-weight:800;text-decoration:none;box-shadow:0 3px 12px -6px rgba(61,46,34,.3)">
         <span data-ic="pin" data-ic-size="16"></span> الموقع على الخريطة
@@ -7004,6 +7043,12 @@ let supScanner = null;
 
 async function supStart() {
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} }
+  // نتأكد أن مكتبة الماسح تحمّلت
+  if (typeof Html5Qrcode === 'undefined') {
+    alert('تعذّر تحميل الماسح.\n\nتأكدي من الاتصال بالإنترنت وحدّثي الصفحة.\nلو تكرر، جرّبي شبكة أخرى أو متصفح آخر.');
+    return;
+  }
+
   supScanner = new Html5Qrcode('sup-reader');
   try {
     await supScanner.start(
@@ -7012,7 +7057,10 @@ async function supStart() {
       async (code) => { await supStop(); await supProcess(code); },
       () => {}
     );
-  } catch(e) { alert('اسمحي بالوصول للكاميرا'); }
+  } catch(e) {
+    supScanner = null;
+    alert(cameraErrorMsg(e));
+  }
 }
 
 async function supStop() {
