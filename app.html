@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 119</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 121</span>
   </div>
 </div>
 
@@ -3246,10 +3246,10 @@ async function loadNextEvent() {
   card.style.background = `linear-gradient(135deg, ${color}, ${color}CC)`;
   document.getElementById('ne-name').textContent = e.name;
 
-  const days = Math.ceil((new Date(e.event_date) - Date.now()) / 86400000);
+  const days = Math.ceil((evDate(e.event_date) - Date.now()) / 86400000);
   document.getElementById('ne-when').textContent =
     (days <= 0 ? '<span data-ic="party" data-ic-size="16"></span> اليوم!' : days === 1 ? 'غداً' : `بعد ${days} أيام`) + ' — ' +
-    new Date(e.event_date).toLocaleDateString('ar-SA', { weekday:'long', day:'numeric', month:'long' });
+    evDate(e.event_date).toLocaleDateString('ar-SA', { weekday:'long', day:'numeric', month:'long' });
 
   const totalQ = await db.from('guests').select('*', { count: 'exact', head: true }).eq('event_id', e.id);
   const total = totalQ.count || 0;
@@ -3414,7 +3414,7 @@ async function loadEvents() {
         <div class="card-title">${esc(e.name)}</div>
         ${currentProfile?.role === 'admin' && e.profiles ? `<div style="font-size:11.5px;color:var(--gold);font-weight:700;margin-bottom:8px"><span data-ic="user" data-ic-size="16"></span> ${esc(e.profiles.full_name) || 'منظمة'}</div>` : ''}
         <div class="card-meta">
-          <span><span data-ic="calendar" data-ic-size="16"></span> ${e.event_date ? new Date(e.event_date).toLocaleDateString('ar-SA', {weekday:'long', day:'numeric', month:'long'}) + (e.enforce_date ? ' <span data-ic="lock" data-ic-size="16"></span>' : '') : 'بدون تاريخ محدد'}</span>
+          <span><span data-ic="calendar" data-ic-size="16"></span> ${e.event_date ? evDate(e.event_date).toLocaleDateString('ar-SA', {weekday:'long', day:'numeric', month:'long'}) + (e.enforce_date ? ' <span data-ic="lock" data-ic-size="16"></span>' : '') : 'بدون تاريخ محدد'}</span>
           ${e.location ? `<span><span data-ic="pin" data-ic-size="16"></span> ${esc(e.location)}</span>` : ''}
           <span><span data-ic="users" data-ic-size="16"></span> ${e.max_companions > 0 ? e.max_companions + ' مرافق لكل ضيفة' : 'بدون مرافقين'}</span>
         </div>
@@ -3716,6 +3716,15 @@ function initDateDropdowns() {
   for (let m = 0; m < 60; m += 5) minSel.innerHTML += `<option value="${m}">${String(m).padStart(2,'0')}</option>`;
 }
 
+// تقرأ التاريخ/الوقت كما أدخلته المالكة بالضبط — بدون إزاحة منطقة زمنية
+function evDate(iso) {
+  if (!iso) return null;
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const d = new Date(iso);
+  return isNaN(d) ? null : d;
+}
+
 function combineDateTime() {
   const d = document.getElementById('ed-day').value;
   const m = document.getElementById('ed-month').value;
@@ -3738,7 +3747,7 @@ function setDateDropdowns(isoStr) {
     document.getElementById('ed-year').value = now.getFullYear();
     return;
   }
-  const dt = new Date(isoStr);
+  const dt = evDate(isoStr) || new Date();
   document.getElementById('ed-day').value = dt.getDate();
   document.getElementById('ed-month').value = dt.getMonth() + 1;
   document.getElementById('ed-year').value = dt.getFullYear();
@@ -5053,12 +5062,12 @@ async function showRsvpPage(qrCode) {
   }
 
   // العد التنازلي (مع منع التكرار)
-  if (event?.event_date && new Date(event.event_date) > new Date() && !document.getElementById('rsvp-countdown')) {
+  if (event?.event_date && evDate(event.event_date) > new Date() && !document.getElementById('rsvp-countdown')) {
     const cd = document.createElement('div');
     cd.id = 'rsvp-countdown';
     cd.style.cssText = 'display:flex;justify-content:center;gap:10px;margin-top:16px';
     document.getElementById('rsvp-location').after(cd);
-    const target = new Date(event.event_date).getTime();
+    const target = evDate(event.event_date).getTime();
     const tick = () => {
       const diff = target - Date.now();
       if (diff <= 0) { cd.innerHTML = '<div style="font-weight:800;color:var(--rose)"><span data-ic="party" data-ic-size="16"></span> اليوم هو اليوم!</div>'; return; }
@@ -5071,8 +5080,23 @@ async function showRsvpPage(qrCode) {
     tick();
     setInterval(tick, 30000);
   }
-  document.getElementById('rsvp-event-date').innerHTML = event?.event_date ? `<span data-ic="calendar" data-ic-size="16"></span> ${new Date(event.event_date).toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' })}` : '';
-  document.getElementById('rsvp-location').innerHTML = event?.location ? `<span data-ic="pin" data-ic-size="16"></span> ${esc(event.location)}` : '';
+  document.getElementById('rsvp-event-date').innerHTML = event?.event_date ? `<span data-ic="calendar" data-ic-size="16"></span> ${evDate(event.event_date).toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' })}` : '';
+  // موقع القاعة — زر يفتح الخريطة للضيفة
+  const locEl = document.getElementById('rsvp-location');
+  if (event?.location) {
+    const hasCoords = event.location_lat && event.location_lng;
+    const mapUrl = hasCoords
+      ? `https://www.google.com/maps/search/?api=1&query=${event.location_lat},${event.location_lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
+    locEl.innerHTML = `<div style="margin-top:6px"><span data-ic="pin" data-ic-size="16"></span> ${esc(event.location)}</div>
+      <a href="${mapUrl}" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:11px 20px;background:#fff;border:1.5px solid var(--rose);color:var(--rose);border-radius:99px;font-size:13.5px;font-weight:800;text-decoration:none;box-shadow:0 3px 12px -6px rgba(61,46,34,.3)">
+        <span data-ic="pin" data-ic-size="16"></span> الموقع على الخريطة
+      </a>`;
+    injectIcons(locEl);
+  } else {
+    locEl.innerHTML = '';
+  }
 
   if (guest.status === 'confirmed') {
     showRsvpConfirmed(guest, qrCode);
