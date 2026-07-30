@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 124</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 125</span>
   </div>
 </div>
 
@@ -4440,8 +4440,8 @@ async function loadScannerEvents() {
 
 async function startScanner() {
   if (qrScanner) { try { await qrScanner.stop(); } catch(e) {} }
-  // نتأكد أن مكتبة الماسح تحمّلت
-  if (typeof Html5Qrcode === 'undefined') {
+  // نتأكد أن مكتبة الماسح جاهزة (ونحمّلها من مصدر بديل لو لزم)
+  if (!(await ensureScannerLib())) {
     alert('تعذّر تحميل الماسح.\n\nتأكدي من الاتصال بالإنترنت وحدّثي الصفحة.\nلو تكرر، جرّبي شبكة أخرى أو متصفح آخر.');
     return;
   }
@@ -4458,6 +4458,30 @@ async function startScanner() {
     qrScanner = null;
     alert(cameraErrorMsg(e));
   }
+}
+
+// يضمن تحميل مكتبة الماسح — يجرب مصادر بديلة عند فشل الأصلي
+async function ensureScannerLib() {
+  if (typeof Html5Qrcode !== 'undefined') return true;
+
+  const sources = [
+    'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+  ];
+
+  for (const src of sources) {
+    const ok = await new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload  = () => resolve(typeof Html5Qrcode !== 'undefined');
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+      setTimeout(() => resolve(typeof Html5Qrcode !== 'undefined'), 8000);
+    });
+    if (ok) return true;
+  }
+  return typeof Html5Qrcode !== 'undefined';
 }
 
 // رسالة دقيقة حسب سبب فشل الكاميرا
@@ -7037,8 +7061,8 @@ let supScanner = null;
 
 async function supStart() {
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} }
-  // نتأكد أن مكتبة الماسح تحمّلت
-  if (typeof Html5Qrcode === 'undefined') {
+  // نتأكد أن مكتبة الماسح جاهزة (ونحمّلها من مصدر بديل لو لزم)
+  if (!(await ensureScannerLib())) {
     alert('تعذّر تحميل الماسح.\n\nتأكدي من الاتصال بالإنترنت وحدّثي الصفحة.\nلو تكرر، جرّبي شبكة أخرى أو متصفح آخر.');
     return;
   }
