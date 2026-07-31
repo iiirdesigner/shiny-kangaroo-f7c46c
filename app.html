@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 127</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 131</span>
   </div>
 </div>
 
@@ -1991,6 +1991,7 @@ function injectIcons(root=document) {
 
               <div style="display:flex;gap:8px;margin-top:12px">
                 <button type="button" onclick="dzCenterEl('name')" style="flex:1;padding:11px;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:11px;cursor:pointer">توسيط الاسم</button>
+                <button type="button" onclick="dzCenterEl('comp')" style="flex:1;padding:11px;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:11px;cursor:pointer">توسيط المرافقين</button>
                 <button type="button" onclick="dzCenterEl('qr')" style="flex:1;padding:11px;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--border);border-radius:11px;cursor:pointer">توسيط الباركود</button>
               </div>
 
@@ -2003,12 +2004,37 @@ function injectIcons(root=document) {
             <!-- Controls -->
             <div style="display:flex;flex-direction:column;gap:14px">
 
+              <!-- Companions line -->
+              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);order:2">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:6px;cursor:pointer">
+                  <input type="checkbox" id="dz-comp-on" onchange="dzRender()" style="width:17px;height:17px;accent-color:var(--rose)">
+                  <span data-ic="users" data-ic-size="16"></span> سطر عدد المرافقين
+                </label>
+                <p style="font-size:11.5px;color:var(--text-light);margin:0 0 12px;line-height:1.7">يظهر فقط للضيفة اللي عندها مرافقون — ويختفي تلقائياً لغيرها</p>
+                <div class="form-group" style="margin-bottom:10px">
+                  <label class="form-label">النص</label>
+                  <input type="text" id="dz-comp-label" class="form-input" value="عدد المرافقين" oninput="dzRender()" style="padding:9px 12px;font-size:13.5px">
+                </div>
+                <div class="form-group" style="margin-bottom:10px">
+                  <label class="form-label">الحجم <span id="dz-comp-size-val">4</span>%</label>
+                  <input type="range" id="dz-comp-size" min="2" max="12" step="0.5" value="4" oninput="document.getElementById('dz-comp-size-val').textContent=this.value; dzRender()" style="width:100%;accent-color:var(--rose)">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">اللون</label>
+                  <input type="color" id="dz-comp-hex" value="#3D2E22" oninput="dzRender()" style="width:100%;height:40px;border:1px solid var(--border);border-radius:10px;cursor:pointer">
+                </div>
+              </div>
+
               <!-- Name settings -->
-              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border)">
+              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);order:1">
                 <label style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:12px;cursor:pointer">
                   <input type="checkbox" id="dz-name-on" checked onchange="dzRender()" style="width:17px;height:17px;accent-color:var(--rose)">
                   <span data-ic="edit" data-ic-size="16"></span> اسم الضيفة
                 </label>
+                <div class="form-group" style="margin-bottom:10px">
+                  <label class="form-label">لقب قبل الاسم (اختياري)</label>
+                  <input type="text" id="dz-name-prefix" class="form-input" placeholder="مثال: المكرّمة / الكريمة" oninput="dzRender()" style="padding:9px 12px;font-size:13.5px">
+                </div>
                 <div class="form-group" style="margin-bottom:10px">
                   <label class="form-label">الخط</label>
                   <select class="form-input" id="dz-font" onchange="dzRender()" style="padding:9px 12px;font-size:13.5px">
@@ -4450,7 +4476,11 @@ async function startScanner() {
   try {
     await qrScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      {
+        fps: 10,
+        qrbox: { width: 290, height: 290 },   // منطقة أوسع — أسهل بالتقاط الباركود
+        videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+      },
       onScanSuccess,
       () => {}
     );
@@ -5226,6 +5256,7 @@ let dzImage = null;
 let dzGuests = [];
 let dzState = {
   namePos: { x: 0.5, y: 0.55 },   // ratios
+  compPos: { x: 0.5, y: 0.64 },
   qrPos: { x: 0.5, y: 0.75 },
   dragging: null
 };
@@ -5358,6 +5389,10 @@ function dzCollectDesign() {
     nameColor: val('dz-name-color'), qrColor: val('dz-qr-color'),
     nameFont: val('dz-name-font'),
     showName: chk('dz-show-name'), showQr: chk('dz-show-qr'),
+    compPos: dzState.compPos,
+    compSize: val('dz-comp-size'), compColor: val('dz-comp-hex'),
+    compLabel: val('dz-comp-label'), showComp: chk('dz-comp-on'),
+    namePrefix: val('dz-name-prefix'),
     image: dzImage ? dzStoreImage(dzImage) : null
   };
 }
@@ -5444,6 +5479,14 @@ async function dzLoadSavedDesign(eventId) {
     const ns = document.getElementById('dz-name-size-val'); if (ns && d.nameSize) ns.textContent = d.nameSize;
     const qs = document.getElementById('dz-qr-size-val'); if (qs && d.qrSize) qs.textContent = d.qrSize;
 
+    // إعدادات سطر المرافقين واللقب
+    if (d.compPos) dzState.compPos = d.compPos;
+    set('dz-comp-size', d.compSize); set('dz-comp-hex', d.compColor);
+    if (d.compLabel) set('dz-comp-label', d.compLabel);
+    if (d.namePrefix != null) set('dz-name-prefix', d.namePrefix);
+    setChk('dz-comp-on', d.showComp);
+    const cs = document.getElementById('dz-comp-size-val'); if (cs && d.compSize) cs.textContent = d.compSize;
+
     // نرجّع صورة الدعوة نفسها
     await new Promise(resolve => {
       const img = new Image();
@@ -5517,7 +5560,7 @@ function dzMakeQRCanvas(text, color, sizePx) {
   return c;
 }
 
-function dzRenderTo(ctx, W, H, guestName, qrText) {
+function dzRenderTo(ctx, W, H, guestName, qrText, companions) {
   // Draw invitation image
   ctx.clearRect(0, 0, W, H);
   ctx.drawImage(dzImage, 0, 0, W, H);
@@ -5540,7 +5583,21 @@ function dzRenderTo(ctx, W, H, guestName, qrText) {
     ctx.fillStyle = document.getElementById('dz-name-hex').value;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(guestName, dzState.namePos.x * W, dzState.namePos.y * H);
+    const _pfx = (document.getElementById('dz-name-prefix')?.value || '').trim();
+    ctx.fillText(_pfx ? `${_pfx} ${guestName}` : guestName, dzState.namePos.x * W, dzState.namePos.y * H);
+  }
+
+  // عدد المرافقين — يظهر فقط لو عندها مرافقون
+  const _cOn = document.getElementById('dz-comp-on');
+  const _cN = parseInt(companions) || 0;
+  if (_cOn && _cOn.checked && _cN > 0) {
+    const _cPx = (parseFloat(document.getElementById('dz-comp-size').value) / 100) * W;
+    ctx.font = `${_cPx}px ${document.getElementById('dz-font').value}`;
+    ctx.fillStyle = document.getElementById('dz-comp-hex').value;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const _cLbl = (document.getElementById('dz-comp-label').value || 'عدد المرافقين').trim();
+    ctx.fillText(`${_cLbl} : ${_cN}`, dzState.compPos.x * W, dzState.compPos.y * H);
   }
 
   // QR
@@ -5592,7 +5649,7 @@ function dzDraw() {
     ? g.qr_code
     : 'PREVIEW-SAMPLE';
 
-  dzRenderTo(ctx, canvas.width, canvas.height, name, qrText);
+  dzRenderTo(ctx, canvas.width, canvas.height, name, qrText, g ? g.companions_count : 1);
 
   // إطار التحديد بمقابض — زي أدوات التصميم
   const W = canvas.width, H = canvas.height;
@@ -5620,6 +5677,11 @@ function dzDraw() {
     const fontPx = (parseFloat(document.getElementById('dz-name-size').value)/100)*W;
     drawBox(dzState.namePos.x*W - W*0.2, dzState.namePos.y*H - fontPx*0.8, W*0.4, fontPx*1.6,
             dzPicked === 'name');
+  }
+  if (document.getElementById('dz-comp-on')?.checked) {
+    const cPx = (parseFloat(document.getElementById('dz-comp-size').value)/100)*W;
+    drawBox(dzState.compPos.x*W - W*0.2, dzState.compPos.y*H - cPx*0.9, W*0.4, cPx*1.8,
+            dzPicked === 'comp');
   }
   if (document.getElementById('dz-qr-on').checked) {
     const qrPx = (parseFloat(document.getElementById('dz-qr-size').value)/100)*W;
@@ -5655,7 +5717,8 @@ let dzPicked = 'name';
 function dzPick(which) { dzPicked = which; }
 
 function dzCenterEl(which) {
-  const t = which === 'qr' ? dzState.qrPos : dzState.namePos;
+  const t = which === 'qr' ? dzState.qrPos
+          : which === 'comp' ? dzState.compPos : dzState.namePos;
   t.x = 0.5;
   dzPicked = which;
   dzRender();
@@ -5715,10 +5778,15 @@ function dzSetupDrag() {
         Math.abs(p.x - dzState.namePos.x) < 0.26 + touchPad &&
         Math.abs(p.y - dzState.namePos.y) < 0.10 + touchPad) {
       dzState.dragging = 'name';
+    } else if (document.getElementById('dz-comp-on')?.checked &&
+        Math.abs(p.x - dzState.compPos.x) < 0.26 + touchPad &&
+        Math.abs(p.y - dzState.compPos.y) < 0.08 + touchPad) {
+      dzState.dragging = 'comp';
     }
     if (dzState.dragging) {
       // نحفظ الإزاحة بين نقطة اللمس ومركز العنصر — فما يقفز (زي كانفا)
-      const cur = dzState.dragging === 'qr' ? dzState.qrPos : dzState.namePos;
+      const cur = dzState.dragging === 'qr' ? dzState.qrPos
+                : dzState.dragging === 'comp' ? dzState.compPos : dzState.namePos;
       dzState.grabDX = cur.x - p.x;
       dzState.grabDY = cur.y - p.y;
       dzPick(dzState.dragging);
@@ -5746,6 +5814,7 @@ function dzSetupDrag() {
     if (dzState.snapY) ny = 0.5;
 
     if (dzState.dragging === 'qr') dzState.qrPos = { x: nx, y: ny };
+    else if (dzState.dragging === 'comp') dzState.compPos = { x: nx, y: ny };
     else dzState.namePos = { x: nx, y: ny };
     dzRender();
   };
@@ -5931,7 +6000,7 @@ async function dzBuildImages(list, progress, label, startNum) {
       `<div style="font-weight:800;margin-bottom:6px">جاري التحميل — ${i + 1} من ${list.length} (${pct}%)</div>` +
       `<div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">` +
       `<div style="height:100%;width:${pct}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
-    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null, g.companions_count);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
     let fnm = dzFileName(g.name, (startNum || 1) + i);
     if (usedImgNames.has(fnm)) {
@@ -5966,7 +6035,7 @@ async function dzBuildZip(list, progress, label) {
       `<div style="font-weight:800;margin-bottom:6px">جاري التحميل — ${i + 1} من ${list.length} (${pctz}%)</div>` +
       `<div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">` +
       `<div style="height:100%;width:${pctz}%;background:var(--rose);border-radius:99px;transition:width .2s"></div></div>`;
-    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null, g.companions_count);
     // JPEG بجودة 95% بدقة كاملة — وضوح ممتاز واستهلاك ذاكرة أقل بكثير
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.95));
 
@@ -6021,7 +6090,7 @@ async function dzBuildPdf(list, progress, label) {
   for (let i = 0; i < list.length; i++) {
     const g = list[i];
     progress.textContent = `تجهيز الدعوة ${i + 1} من ${list.length}...`;
-    dzRenderTo(ctx, W, H, g.name, g.qr_code || null);
+    dzRenderTo(ctx, W, H, g.name, g.qr_code || null, g.companions_count);
     octx.clearRect(0, 0, PW, PH);
     octx.drawImage(canvas, 0, 0, PW, PH);
     const dataUrl = out.toDataURL('image/jpeg', 0.9);
@@ -6054,7 +6123,7 @@ async function dzGenerateAll() {
     const g = dzGuests[i];
     progress.textContent = `جاري تجهيز ${i+1} من ${dzGuests.length}...`;
     const qrText = g.qr_code ? g.qr_code : null;
-    dzRenderTo(ctx, W, H, g.name, qrText);
+    dzRenderTo(ctx, W, H, g.name, qrText, g.companions_count);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
     zip.file(`${g.name}.png`, blob);
     if (i % 8 === 0) await new Promise(r => setTimeout(r, 0)); // نفس للمتصفح
@@ -6154,7 +6223,7 @@ async function dzGallerySave() {
     const g = dzGuests[i];
     prog.textContent = `جاري تجهيز ${i+1} من ${dzGuests.length}...`;
     const qrText = g.qr_code ? g.qr_code : null;
-    dzRenderTo(ctx, W, H, g.name, qrText);
+    dzRenderTo(ctx, W, H, g.name, qrText, g.companions_count);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
     files.push(new File([blob], `${g.name}.png`, { type: 'image/png' }));
     await new Promise(r => setTimeout(r, 10));
@@ -6225,7 +6294,7 @@ function dzDownloadPreview() {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   const qrText = (g && g.qr_code) ? g.qr_code : null;
-  dzRenderTo(ctx, W, H, g ? g.name : 'اسم الضيفة', qrText);
+  dzRenderTo(ctx, W, H, g ? g.name : 'اسم الضيفة', qrText, g ? g.companions_count : 1);
   canvas.toBlob(blob => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -7071,7 +7140,11 @@ async function supStart() {
   try {
     await supScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 240, height: 240 } },
+      {
+        fps: 10,
+        qrbox: { width: 280, height: 280 },
+        videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+      },
       async (code) => { await supStop(); await supProcess(code); },
       () => {}
     );
