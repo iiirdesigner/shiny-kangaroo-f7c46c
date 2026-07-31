@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 134</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 135</span>
   </div>
 </div>
 
@@ -2460,6 +2460,7 @@ function injectIcons(root=document) {
 
     <div style="position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:1">
       <video id="zbar-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+      <canvas id="zbar-overlay" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
     </div>
 
     <div id="zbar-result" style="margin-top:12px;padding:12px;border-radius:10px;background:#ECFDF5;border:1px solid #A7F3D0;display:none;font-size:13px;font-weight:700;text-align:center;word-break:break-all"></div>
@@ -4083,17 +4084,53 @@ async function openZbarTest() {
 
     statusEl.textContent = '✅ المحرك جاهز — وجّهي على الباركود';
 
-    // 3) حلقة قراءة مستقلة
+    // 3) حلقة قراءة مستقلة + رسم إطار حول الباركود المكتشف
+    const overlay = document.getElementById('zbar-overlay');
+    let _lastHit = 0;
+
+    const drawFrame = (corners) => {
+      const octx = overlay.getContext('2d');
+      overlay.width = overlay.clientWidth;
+      overlay.height = overlay.clientHeight;
+      octx.clearRect(0, 0, overlay.width, overlay.height);
+      if (!corners || !corners.length) return;
+
+      // نحوّل إحداثيات الفيديو الحقيقية لإحداثيات العرض (الفيديو يُقص ليملأ المربع)
+      const vw = video.videoWidth || overlay.width, vh = video.videoHeight || overlay.height;
+      const scale = Math.max(overlay.width / vw, overlay.height / vh);
+      const offX = (overlay.width - vw * scale) / 2;
+      const offY = (overlay.height - vh * scale) / 2;
+      const pts = corners.map(p => ({ x: p.x * scale + offX, y: p.y * scale + offY }));
+
+      const fresh = Date.now() - _lastHit < 250;   // أخضر لحظة الالتقاط الفعلي
+      octx.strokeStyle = fresh ? '#22C55E' : '#D9B583';
+      octx.lineWidth = 4;
+      octx.lineJoin = 'round';
+      octx.beginPath();
+      octx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) octx.lineTo(pts[i].x, pts[i].y);
+      octx.closePath();
+      octx.stroke();
+
+      // مقابض بالزوايا (زي كاميرا الجوال)
+      octx.fillStyle = fresh ? '#22C55E' : '#D9B583';
+      pts.forEach(p => { octx.beginPath(); octx.arc(p.x, p.y, 6, 0, Math.PI*2); octx.fill(); });
+    };
+
     const loop = async () => {
       if (!_zbarStream) return;   // توقّف لو أُغلقت النافذة
       try {
         const codes = await _zbarDetector.detect(video);
         if (codes && codes.length) {
+          drawFrame(codes[0].cornerPoints);
+          _lastHit = Date.now();
           resultEl.style.display = 'block';
           resultEl.textContent = '✅ انقرأ: ' + codes[0].rawValue;
           if (navigator.vibrate) navigator.vibrate(60);
+        } else {
+          drawFrame(null);
         }
-      } catch (e) { /* إطار فاشل، نكمل بدون توقف */ }
+      } catch (e) { drawFrame(null); }
       _zbarLoop = requestAnimationFrame(loop);
     };
     loop();
@@ -4110,6 +4147,8 @@ function closeZbarTest() {
     _zbarStream.getTracks().forEach(t => t.stop());   // نطفئ الكاميرا فوراً
     _zbarStream = null;
   }
+  const ov = document.getElementById('zbar-overlay');
+  if (ov) ov.getContext('2d').clearRect(0, 0, ov.width, ov.height);
   closeModal('modal-zbar-test');
 }
 
