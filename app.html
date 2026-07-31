@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 131</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 134</span>
   </div>
 </div>
 
@@ -2246,6 +2246,13 @@ function injectIcons(root=document) {
             <button class="btn btn-secondary" style="flex:1" onclick="stopScanner()">إيقاف</button>
           </div>
 
+          <!-- 🧪 اختبار منفصل تماماً — لا يلمس الماسح الحقيقي ولا يسجّل حضور -->
+          <div style="margin-top:14px;text-align:center">
+            <button type="button" onclick="openZbarTest()" style="background:none;border:none;color:var(--text-light);font-size:12px;text-decoration:underline;cursor:pointer;padding:8px">
+              🧪 تجربة محرك مسح أقوى (تجريبي — بدون تسجيل حضور)
+            </button>
+          </div>
+
           <!-- Name/Number search -->
           <div style="margin-top:16px;padding:20px;background:white;border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow)">
             <p style="font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px"><span data-ic="search" data-ic-size="16"></span> البحث عن الضيفة</p><p style="font-size:12px;color:var(--text-light);margin-bottom:12px">لو الضيفة نست الباركود — ابحثي باسمها أو رقمها</p>
@@ -2436,6 +2443,28 @@ function injectIcons(root=document) {
       <button class="btn btn-secondary" style="flex:1;padding:14px" onclick="closeModal('modal-bulk-del')">إلغاء</button>
       <button class="btn" id="bd-apply" onclick="bdApply()" style="flex:2;padding:14px;background:#B42318;color:#fff;border:none;font-weight:800">حذف المحددات</button>
     </div>
+  </div>
+</div>
+
+<div id="modal-zbar-test" class="modal-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">🧪 تجربة محرك مسح أقوى</div>
+    <p style="font-size:12.5px;color:var(--text-light);margin:0 0 12px;line-height:1.8">
+      هذا اختبار منفصل تماماً — <b>ما يسجّل حضور ولا يلمس بيانات المناسبات</b>.
+      وجّهي الكاميرا على أي باركود وشوفي هل يقرأه أسرع من الماسح العادي.
+    </p>
+
+    <div id="zbar-status" style="text-align:center;padding:10px;border-radius:10px;background:#F5F0E8;font-size:12.5px;font-weight:700;margin-bottom:12px">
+      جاري تجهيز المحرك...
+    </div>
+
+    <div style="position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:1">
+      <video id="zbar-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+    </div>
+
+    <div id="zbar-result" style="margin-top:12px;padding:12px;border-radius:10px;background:#ECFDF5;border:1px solid #A7F3D0;display:none;font-size:13px;font-weight:700;text-align:center;word-break:break-all"></div>
+
+    <button class="btn btn-secondary" style="width:100%;margin-top:14px" onclick="closeZbarTest()">إغلاق</button>
   </div>
 </div>
 
@@ -4001,6 +4030,87 @@ async function bdApply() {
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🧪 اختبار محرك مسح منفصل تماماً (ZXing/ZBar عبر WebAssembly)
+// معزول بالكامل: كاميرا خاصة به، ما يلمس qrScanner/supScanner/processScan
+// إغلاقه يطفئ كاميرته دايماً — لا يترك أثراً ولا صلاحية كاميرا معلّقة
+// ═══════════════════════════════════════════════════════════════
+let _zbarStream = null;
+let _zbarLoop = null;
+let _zbarDetector = null;
+
+async function openZbarTest() {
+  openModal('modal-zbar-test');
+  const statusEl = document.getElementById('zbar-status');
+  const resultEl = document.getElementById('zbar-result');
+  resultEl.style.display = 'none';
+  statusEl.textContent = 'جاري تجهيز المحرك...';
+
+  try {
+    // 1) نجهّز محرك القراءة (أصلي بالمتصفح لو موجود، وإلا مكتبة بديلة)
+    if (!window.BarcodeDetector) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@undecaf/zbar-wasm@0.9.15/dist/index.js';
+        s.onload = () => {
+          const s2 = document.createElement('script');
+          s2.src = 'https://cdn.jsdelivr.net/npm/@undecaf/barcode-detector-polyfill@0.9.23/dist/index.js';
+          s2.onload = () => {
+            try {
+              window.BarcodeDetector = barcodeDetectorPolyfill.BarcodeDetectorPolyfill;
+              resolve();
+            } catch (e) { reject(e); }
+          };
+          s2.onerror = reject;
+          document.head.appendChild(s2);
+        };
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    _zbarDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+
+    // 2) نفتح كاميرا خاصة بهذا الاختبار فقط
+    _zbarStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+    });
+    const video = document.getElementById('zbar-video');
+    video.srcObject = _zbarStream;
+    await video.play().catch(() => {});
+
+    statusEl.textContent = '✅ المحرك جاهز — وجّهي على الباركود';
+
+    // 3) حلقة قراءة مستقلة
+    const loop = async () => {
+      if (!_zbarStream) return;   // توقّف لو أُغلقت النافذة
+      try {
+        const codes = await _zbarDetector.detect(video);
+        if (codes && codes.length) {
+          resultEl.style.display = 'block';
+          resultEl.textContent = '✅ انقرأ: ' + codes[0].rawValue;
+          if (navigator.vibrate) navigator.vibrate(60);
+        }
+      } catch (e) { /* إطار فاشل، نكمل بدون توقف */ }
+      _zbarLoop = requestAnimationFrame(loop);
+    };
+    loop();
+
+  } catch (e) {
+    statusEl.textContent = '⚠️ تعذّر تشغيل الاختبار: ' + (e.message || e);
+  }
+}
+
+function closeZbarTest() {
+  if (_zbarLoop) cancelAnimationFrame(_zbarLoop);
+  _zbarLoop = null;
+  if (_zbarStream) {
+    _zbarStream.getTracks().forEach(t => t.stop());   // نطفئ الكاميرا فوراً
+    _zbarStream = null;
+  }
+  closeModal('modal-zbar-test');
 }
 
 let _bcSelected = new Set();
