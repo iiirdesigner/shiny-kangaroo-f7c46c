@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 138</span>
+    الإصدار <span style="font-weight:700">2026-07-31 · 139</span>
   </div>
 </div>
 
@@ -4633,6 +4633,7 @@ async function startScanner() {
       onScanSuccess,
       () => {}
     );
+    invHelperStart('qr-reader', onScanSuccess);   // مساعد الباركود المعكوس — إضافة فقط
   } catch(e) {
     qrScanner = null;
     alert(cameraErrorMsg(e));
@@ -4678,6 +4679,7 @@ function cameraErrorMsg(e) {
 }
 
 async function stopScanner() {
+  invHelperStop();   // مساعد الباركود المعكوس — إضافة فقط
   if (qrScanner) {
     try { await qrScanner.stop(); } catch(e) {}
     qrScanner = null;
@@ -4687,6 +4689,98 @@ async function stopScanner() {
 async function onScanSuccess(code) {
   await stopScanner();
   await processScan(code);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔄 مساعد قراءة الباركود المعكوس (فاتح على خلفية غامقة) — أُضيف v139
+//
+// لماذا: مواصفة QR تفترض مربعات غامقة على خلفية فاتحة. الدعوات ذات
+// الباركود الفاتح على خلفية غامقة "مقلوبة الاستقطاب" — محركات المتصفح
+// لا تقرأها إطلاقاً (كاميرا آيفون تقرأها لأن نظام Apple يجرّب الاتجاهين).
+//
+// كيف يعمل: لا يلمس qrScanner ولا supScanner ولا processScan ولا إعداداتهما.
+// ينتظر ١.٥ ثانية؛ فإن لم تنجح القراءة العادية، يأخذ لقطة من نفس بث الفيديو
+// الشغّال (بدون كاميرا إضافية)، يعكس ألوانها بالذاكرة، ويقرأها بنفس مكتبة
+// html5-qrcode المحمّلة أصلاً — بدون أي تحميل خارجي جديد.
+// فشله لا يوقف شيئاً؛ الماسح الأصلي يواصل عمله طبيعياً بكل الأحوال.
+//
+// لا خطر تسجيل مزدوج: الصورة المعكوسة لباركود سليم لا تُقرأ أصلاً،
+// فيستحيل نجاح المسارين على نفس الدعوة.
+//
+// لإلغاء الميزة كلياً: احذفي سطري invHelperStart/invHelperStop فقط.
+// ═══════════════════════════════════════════════════════════════
+let _invTimer = null, _invBusy = false, _invReader = null, _invHit = false;
+
+// عنصر مخفي خارج الشاشة تستعمله المكتبة للقراءة فقط — لا يظهر للمشرفة
+function _invHost() {
+  let el = document.getElementById('inv-helper-host');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'inv-helper-host';
+    el.style.cssText = 'position:fixed;left:-10000px;top:0;width:320px;height:320px;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+async function _invTryOnce(containerId, onHit) {
+  if (_invBusy || _invHit) return;
+  if (typeof Html5Qrcode === 'undefined') return;
+
+  const video = document.querySelector('#' + containerId + ' video');
+  if (!video || !video.videoWidth) return;
+
+  _invBusy = true;
+  let cv = null;
+  try {
+    // نقتطع المربع الأوسط — نفس ما تصوّبه المشرفة، وأنظف من أطراف الصورة
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const side = Math.min(vw, vh);
+    const sx = (vw - side) / 2, sy = (vh - side) / 2;
+
+    cv = document.createElement('canvas');
+    cv.width = side; cv.height = side;
+    const c = cv.getContext('2d', { willReadFrequently: true });
+    c.imageSmoothingEnabled = false;   // حواف المربعات لازم تبقى حادة
+    c.drawImage(video, sx, sy, side, side, 0, 0, side, side);
+
+    // عكس الألوان: الفاتح يصير غامق — فيصير الباركود مطابقاً للمواصفة
+    const img = c.getImageData(0, 0, side, side);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = 255 - d[i]; d[i+1] = 255 - d[i+1]; d[i+2] = 255 - d[i+2];
+    }
+    c.putImageData(img, 0, 0);
+
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    if (!blob) return;
+
+    _invReader = _invReader || new Html5Qrcode(_invHost().id);
+    const code = await _invReader.scanFile(new File([blob], 'inv.png', { type: 'image/png' }), false);
+
+    if (code && !_invHit) {
+      _invHit = true;
+      invHelperStop();
+      if (navigator.vibrate) navigator.vibrate(60);
+      await onHit(code);
+    }
+  } catch (e) {
+    // ما انقرأ بالعكس — طبيعي جداً، نتجاهل بصمت والماسح الأصلي شغّال
+  } finally {
+    if (cv) { cv.width = cv.height = 1; }   // تحرير الذاكرة فوراً (مهم للآيفون)
+    _invBusy = false;
+  }
+}
+
+function invHelperStart(containerId, onHit) {
+  invHelperStop();
+  _invHit = false;
+  _invTimer = setInterval(() => { _invTryOnce(containerId, onHit); }, 1500);
+}
+
+function invHelperStop() {
+  if (_invTimer) { clearInterval(_invTimer); _invTimer = null; }
+  _invBusy = false;
 }
 
 let _mainSearchTimer = null;
@@ -7301,6 +7395,7 @@ async function supStart() {
       async (code) => { await supStop(); await supProcess(code); },
       () => {}
     );
+    invHelperStart('sup-reader', async (code) => { await supStop(); await supProcess(code); });   // مساعد الباركود المعكوس — إضافة فقط
   } catch(e) {
     supScanner = null;
     alert(cameraErrorMsg(e));
@@ -7308,6 +7403,7 @@ async function supStart() {
 }
 
 async function supStop() {
+  invHelperStop();   // مساعد الباركود المعكوس — إضافة فقط
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} supScanner = null; }
 }
 
