@@ -5706,10 +5706,6 @@ function dzMakeQRCanvas(text, color, sizePx) {
   for (let r = 0; r < count; r++)
     for (let col = 0; col < count; col++)
       if (qr.isDark(r, col)) ctx.fillRect(col*cell, r*cell, cell, cell);
-  // خط حدودي رفيع حول محيط الباركود فقط (بدون تعبئة داخلية)
-  ctx.strokeStyle = '#F7F2E9';
-  ctx.lineWidth = Math.max(2, Math.round(sizePx * 0.012));
-  ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, size - ctx.lineWidth, size - ctx.lineWidth);
   return c;
 }
 
