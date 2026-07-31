@@ -1455,7 +1455,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-22 · 136</span>
+    الإصدار <span style="font-weight:700">2026-07-22 · 138</span>
   </div>
 </div>
 
@@ -5697,20 +5697,19 @@ function dzMakeQRCanvas(text, color, sizePx) {
   qr.addData(text);
   qr.make();
   const count = qr.getModuleCount();
-  const BORDER = Math.max(2, Math.round(sizePx * 0.015));   // حاشية دقيقة جداً — أخف درجة تقنياً ممكنة
-  const cell = Math.ceil((sizePx - BORDER * 2) / count);
-  const inner = cell * count;
-  const size = inner + BORDER * 2;
+  const cell = Math.ceil(sizePx / count);
+  const size = cell * count;
   const c = document.createElement('canvas');
   c.width = size; c.height = size;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#F7F2E9';                    // لون دافئ قريب من الورق — مو أبيض ناصع
-  ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = color;
   for (let r = 0; r < count; r++)
     for (let col = 0; col < count; col++)
-      if (qr.isDark(r, col))
-        ctx.fillRect(BORDER + col*cell, BORDER + r*cell, cell, cell);
+      if (qr.isDark(r, col)) ctx.fillRect(col*cell, r*cell, cell, cell);
+  // خط حدودي رفيع حول محيط الباركود فقط (بدون تعبئة داخلية)
+  ctx.strokeStyle = '#F7F2E9';
+  ctx.lineWidth = Math.max(2, Math.round(sizePx * 0.012));
+  ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, size - ctx.lineWidth, size - ctx.lineWidth);
   return c;
 }
 
@@ -5759,7 +5758,11 @@ function dzRenderTo(ctx, W, H, guestName, qrText, companions) {
     const qrPct = parseFloat(document.getElementById('dz-qr-size').value);
     const qrPx = (qrPct / 100) * W;
     const qrCanvas = dzMakeQRCanvas(qrText, document.getElementById('dz-qr-hex').value, qrPx * 2);
+    // نمنع تنعيم الصورة هنا فقط — الباركود لازم مربعات حادة ١٠٠٪، التنعيم يذيب حوافه ويكسر القراءة
+    const _prevSmooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(qrCanvas, dzState.qrPos.x * W - qrPx/2, dzState.qrPos.y * H - qrPx/2, qrPx, qrPx);
+    ctx.imageSmoothingEnabled = _prevSmooth;   // نرجّع الوضع الطبيعي لبقية الرسم (الصورة، الاسم..)
   }
 }
 
