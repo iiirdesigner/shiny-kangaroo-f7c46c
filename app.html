@@ -5333,6 +5333,7 @@ async function showRsvpPage(qrCode) {
 
   const { data: guest } = await db.rpc('pub_rsvp_get', { qr_input: qrCode });
   window._rsvpQr = qrCode;
+  window._rsvpName = guest?.name || null;   // اسم الضيفة — يُستعمل بتوقيع التهنئة (v139)
 
   if (!guest) {
     document.getElementById('rsvp-event-name').textContent = 'دعوة غير صالحة';
@@ -6814,10 +6815,11 @@ async function showInlineThanks() {
 async function submitWishByQr() {
   const msg = document.getElementById('wish-msg').value.trim();
   if (!msg) return;
-  // الاسم معروف من الباركود — ما نطلبه من الضيفة
+  // الاسم معروف من الباركود — ما نطلبه من الضيفة، نرسله نحن
+  // (كان يُرسل null فتُسجَّل التهنئة بلا اسم وتظهر "ضيفة") — أُصلح v139
   await db.rpc('pub_wish_add_by_qr', {
     qr_input: window._rsvpQr,
-    name_input: null,
+    name_input: window._rsvpName || null,
     msg_input: msg
   });
   document.getElementById('wish-form').style.display = 'none';
