@@ -2069,7 +2069,7 @@ function injectIcons(root=document) {
               </div>
 
               <!-- QR settings -->
-              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border)">
+              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);order:3">
                 <label style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:12px;cursor:pointer">
                   <input type="checkbox" id="dz-qr-on" checked onchange="dzRender()" style="width:17px;height:17px;accent-color:var(--rose)">
                   <span data-ic="qr" data-ic-size="16"></span> الباركود
@@ -2094,7 +2094,7 @@ function injectIcons(root=document) {
               </div>
 
               <!-- Quick position presets -->
-              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border)">
+              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);order:4">
                 <div style="font-weight:800;font-size:14px;margin-bottom:12px"><span data-ic="bolt" data-ic-size="16"></span> ترتيب سريع</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                   <button class="btn btn-secondary btn-sm" onclick="dzPreset('classic')" style="padding:10px 6px;font-size:12.5px">الاسم وسط + باركود تحت</button>
@@ -2105,7 +2105,7 @@ function injectIcons(root=document) {
               </div>
 
               <!-- Generate -->
-              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border)">
+              <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);order:5">
                 <div style="font-weight:800;font-size:14px;margin-bottom:12px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--rose);color:#fff;font-size:12px;font-weight:700;vertical-align:middle">4</span> التحميل</div>
                 <div id="dz-progress" style="display:none;text-align:center;padding:10px;font-weight:700;color:var(--rose);font-size:13.5px;margin-bottom:8px"></div>
                 <button class="btn btn-primary" style="width:100%;padding:15px;font-size:15px" onclick="dzExportAll('gallery')"><span data-ic="phone" data-ic-size="16"></span> حفظ كل الصور بالاستديو</button>
