@@ -2784,9 +2784,9 @@ async function init() {
   const hasParam = params.get('rsvp') || params.get('scan') || params.get('live') || params.get('thanks') || params.get('open') || params.get('openreport') || params.get('scanreport');
   if (!hasParam) {
     const path = window.location.pathname;
-    const seg = path.match(/\/(i|m|or|r|t|c)\/([^/?#]+)/);
+    const seg = path.match(/\/(i|m|or|sr|r|t|c)\/([^/?#]+)/);
     if (seg) {
-      const key = { i: 'rsvp', m: 'scan', or: 'openreport', r: 'live', t: 'thanks', c: 'open' }[seg[1]];
+      const key = { i: 'rsvp', m: 'scan', or: 'openreport', sr: 'scanreport', r: 'live', t: 'thanks', c: 'open' }[seg[1]];
       params.set(key, decodeURIComponent(seg[2]));
     } else {
       // الكود العاري:  rqr0.com/K7M2QXR9
@@ -4422,8 +4422,9 @@ function scannerLink(id)    { return `${window.location.origin}/m/${id}`; }
 function liveLink(id)       { return `${window.location.origin}/r/${id}`; }
 function openRsvpLink(id)   { return `${window.location.origin}/c/${id}`; }
 function openReportLink(id) { return `${window.location.origin}/or/${id}`; }
-// تقرير المسح — نستخدم الشكل بالباراميتر مباشرة عشان ما يعتمد على ملف _redirects (v139)
-function scanReportLink(id) { return `${window.location.origin}/?scanreport=${id}`; }
+// تقرير المسح — نبنيه من *نفس مسار الصفحة الحالية* لا من جذر الموقع،
+// لأن الجذر قد يفتح صفحة دخول/هبوط مختلفة حسب إعداد الاستضافة. (v139)
+function scanReportLink(id) { return `${window.location.origin}${window.location.pathname}?scanreport=${id}`; }
 
 function copyOpenRsvpLink() {
   const link = openRsvpLink(currentEventId);
