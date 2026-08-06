@@ -1884,6 +1884,7 @@ function injectIcons(root=document) {
               <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
               <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
               <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
+              <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
               <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
               <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
               <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
@@ -2780,7 +2781,7 @@ async function init() {
   // 🛟 شبكة أمان: لو الرابط النظيف /i/CODE وصل هنا بأي طريقة
   //    (ملف _redirects ناقص أو مضبوط غلط)، نقرأ الكود من المسار نفسه.
   //    كذا الدعوة تشتغل مهما صار.
-  const hasParam = params.get('rsvp') || params.get('scan') || params.get('live') || params.get('thanks') || params.get('open') || params.get('openreport');
+  const hasParam = params.get('rsvp') || params.get('scan') || params.get('live') || params.get('thanks') || params.get('open') || params.get('openreport') || params.get('scanreport');
   if (!hasParam) {
     const path = window.location.pathname;
     const seg = path.match(/\/(i|m|or|r|t|c)\/([^/?#]+)/);
@@ -2813,6 +2814,10 @@ async function init() {
   // اللوحة المباشرة (عرض حي)
   const liveId = params.get('live');
   if (liveId) { showLivePage(liveId); return; }
+
+  // تقرير المسح المنفصل — للعميلة يوم المناسبة (v139)
+  const scanReportId = params.get('scanreport');
+  if (scanReportId) { showScanReportPage(scanReportId); return; }
 
   // بوابة الدخول: مسح الباركود بأي كاميرا يفتح هذي الصفحة
   const gateCode = params.get('gate');
@@ -4417,6 +4422,8 @@ function scannerLink(id)    { return `${window.location.origin}/m/${id}`; }
 function liveLink(id)       { return `${window.location.origin}/r/${id}`; }
 function openRsvpLink(id)   { return `${window.location.origin}/c/${id}`; }
 function openReportLink(id) { return `${window.location.origin}/or/${id}`; }
+// تقرير المسح — نستخدم الشكل بالباراميتر مباشرة عشان ما يعتمد على ملف _redirects (v139)
+function scanReportLink(id) { return `${window.location.origin}/?scanreport=${id}`; }
 
 function copyOpenRsvpLink() {
   const link = openRsvpLink(currentEventId);
@@ -6850,6 +6857,14 @@ function copyLiveLink() {
  alert('تم نسخ رابط التقرير المباشر!\n\nهذا الرابط تعطينه للعميلة (صاحبة الحفل) — تفتحه وتشوف كل شي محدّث تلقائياً:\n\n• الحضور والتأكيدات والاعتذارات\n• التهاني اللي يكتبونها\n\nيتحدث لحاله كل 5 ثواني بدون ما تعيد تحميل.\n\n' + link);
 }
 
+// ═══════ تقرير المسح المنفصل (v139) ═══════
+function copyScanReportLink() {
+  if (!currentEventId) return alert('افتحي مناسبة أولاً');
+  const link = scanReportLink(currentEventId);
+  navigator.clipboard.writeText(link);
+  alert('تم نسخ رابط تقرير المسح!\n\nهذا خاص بالدخول فقط — تعطينه للعميلة يوم المناسبة:\n\n• من دخلت وبأي وقت (الأحدث فوق)\n• من لم تدخل بعد\n• ومن تكرر مسح باركودها\n\nبدون تأكيدات ولا اعتذارات ولا تهاني.\nيتحدث لحاله كل 5 ثواني.\n\n' + link);
+}
+
 // ═══════ الرابط الموحد: صفحة تأكيد الحضور (بدون باركود) ═══════
 async function showOpenRsvpPage(eventId) {
   document.getElementById('loading').style.display = 'none';
@@ -7140,6 +7155,160 @@ async function showLivePage(eventId) {
 
   await refresh();
   setInterval(refresh, 5000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 📋 تقرير مسح الباركود — صفحة مستقلة (v139)
+//
+// طلب العميلة: تقرير خاص بالمسح لحاله، ترسله لصاحبة الحفل يوم المناسبة.
+// يعرض: من دخلت · بأي وقت · من تكرر مسحها · ومن لم تدخل بعد.
+// بدون تأكيدات ولا اعتذارات ولا تهاني — المسح فقط.
+//
+// صفحة جديدة تماماً — ما تلمس التقرير المباشر ولا الماسح ولا أي شي قائم.
+// تستخدم نفس دوال pub_live_* الموجودة (ما تحتاج أي دالة جديدة بالقاعدة).
+// ═══════════════════════════════════════════════════════════════
+async function showScanReportPage(eventId) {
+  document.getElementById('loading').style.display = 'none';
+  const { data: ev } = await db.rpc('pub_live_event', { event_input: eventId });
+  if (!ev) { document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif" dir="rtl">المناسبة غير موجودة</div>'; return; }
+  const color = ev.color || '#C4956A';
+  document.documentElement.style.setProperty('--rose', color);
+
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#faf6f0;font-family:'IBM Plex Sans Arabic',sans-serif;padding:24px 16px" dir="rtl">
+      <div style="max-width:760px;margin:0 auto">
+
+        <div style="text-align:center;padding:24px;background:linear-gradient(135deg,${color},${color}dd);border-radius:22px;color:#fff;margin-bottom:16px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600">${esc(ev.name)}</div>
+          <div style="opacity:.9;font-size:13.5px;margin-top:6px">${ev.event_date ? new Date(ev.event_date).toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'}) : ''}</div>
+          <div style="margin-top:12px;font-size:12px;opacity:.85">
+            <span style="display:inline-block;width:7px;height:7px;background:#7CFC9A;border-radius:50%;margin-left:6px;animation:livePulse 1.5s infinite"></span>
+            تقرير الدخول — يتحدث تلقائياً · <span id="sr-time">الآن</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="sr-stats"></div>
+
+        <div style="background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:8px">
+            <span>نسبة الدخول</span><span id="sr-pct">0%</span>
+          </div>
+          <div style="background:#f0e6da;border-radius:20px;height:14px;overflow:hidden">
+            <div id="sr-bar" style="background:${color};height:100%;width:0%;border-radius:20px;transition:width .6s"></div>
+          </div>
+        </div>
+
+        <div id="sr-dup-box" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:16px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-weight:800;font-size:13.5px;color:#B91C1C;margin-bottom:8px">تكرر مسح باركودهن</div>
+          <div id="sr-dup-list" style="font-size:12.5px;color:#7F1D1D;line-height:2"></div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button onclick="srTab('in')"  id="sr-t-in"  style="flex:1;padding:11px 6px;border:none;border-radius:12px;background:${color};color:#fff;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer">دخلن</button>
+          <button onclick="srTab('out')" id="sr-t-out" style="flex:1;padding:11px 6px;border:none;border-radius:12px;background:#fff;color:#333;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer">لم يدخلن</button>
+        </div>
+
+        <div id="sr-list" style="background:#fff;border-radius:16px;padding:8px;min-height:200px;box-shadow:0 2px 12px rgba(0,0,0,.04)"></div>
+      </div>
+    </div>`;
+
+  let srGuests = [];
+  let srCurrent = 'in';
+
+  window.srTab = function(t) {
+    srCurrent = t;
+    document.getElementById('sr-t-in').style.background  = t === 'in'  ? color : '#fff';
+    document.getElementById('sr-t-in').style.color       = t === 'in'  ? '#fff' : '#333';
+    document.getElementById('sr-t-out').style.background = t === 'out' ? color : '#fff';
+    document.getElementById('sr-t-out').style.color      = t === 'out' ? '#fff' : '#333';
+    srRender();
+  };
+
+  function srTime(v) {
+    return v ? new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '';
+  }
+
+  function srRender() {
+    const box = document.getElementById('sr-list');
+
+    if (srCurrent === 'out') {
+      const out = srGuests.filter(g => !g.scan_count)
+        .slice().sort((a,b) => String(a.name||'').localeCompare(String(b.name||''), 'ar'));
+      box.innerHTML = out.length ? out.map(g => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #f0e6da">
+          <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
+          <div style="font-size:12px;color:#bbb;font-weight:700">لم تدخل</div>
+        </div>`).join('')
+        : '<div style="padding:40px;text-align:center;color:#bbb;font-size:14px">دخل الجميع</div>';
+      return;
+    }
+
+    // الداخلات — مرتبات بوقت الدخول، الأحدث أولاً
+    const inn = srGuests.filter(g => g.scan_count > 0)
+      .slice().sort((a,b) => new Date(b.last_scanned_at||0) - new Date(a.last_scanned_at||0));
+
+    box.innerHTML = inn.length ? inn.map(g => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #f0e6da">
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
+          ${g.companions_count > 0 ? `<div style="font-size:12px;color:#888;margin-top:2px">مع ${g.companions_count} مرافق</div>` : ''}
+          ${g.scan_count > 1 ? `<div style="font-size:11.5px;color:#DC2626;margin-top:2px;font-weight:700">تكرر مسحها ${g.scan_count} مرات</div>` : ''}
+        </div>
+        <div style="text-align:left;white-space:nowrap">
+          <div style="font-size:12px;color:#059669;font-weight:700">دخلت</div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px">${srTime(g.last_scanned_at)}</div>
+        </div>
+      </div>`).join('')
+      : '<div style="padding:40px;text-align:center;color:#bbb;font-size:14px">لم يدخل أحد بعد</div>';
+  }
+
+  async function srRefresh() {
+    let all = [], off = 0;
+    while (true) {
+      const { data, error } = await db.rpc('pub_live_guests', { event_input: eventId, off_input: off });
+      if (error || !data || !data.length) break;
+      all.push(...data);
+      if (data.length < 1000) break;
+      off += 1000;
+    }
+    srGuests = all;
+
+    const total   = all.length;
+    const entered = all.filter(g => g.scan_count > 0);
+    const comp    = entered.reduce((s,g) => s + (g.companions_count||0), 0);
+    const dups    = entered.filter(g => g.scan_count > 1);
+    const pct     = total ? Math.round(entered.length / total * 100) : 0;
+
+    document.getElementById('sr-stats').innerHTML = [
+      ['دخلن', entered.length, '#059669', comp > 0 ? `+${comp} مرافق` : ''],
+      ['لم يدخلن', total - entered.length, '#B08A54', ''],
+      ['إجمالي المدعوات', total, '#666', '']
+    ].map(([l,n,c,extra]) => `
+      <div style="background:#fff;border-radius:14px;padding:16px 8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.04)">
+        <div style="font-size:26px;font-weight:800;color:${c}">${n}</div>
+        <div style="font-size:11.5px;color:#888;margin-top:2px">${l}</div>
+        ${extra ? `<div style="font-size:10.5px;color:#B08A54;margin-top:2px;font-weight:700">${extra}</div>` : ''}
+      </div>`).join('');
+
+    const dupBox = document.getElementById('sr-dup-box');
+    if (dups.length) {
+      dupBox.style.display = 'block';
+      document.getElementById('sr-dup-list').innerHTML =
+        dups.map(g => `${esc(g.name)} — ${g.scan_count} مرات`).join('<br>');
+    } else {
+      dupBox.style.display = 'none';
+    }
+
+    document.getElementById('sr-pct').textContent = pct + '%';
+    document.getElementById('sr-bar').style.width = pct + '%';
+    document.getElementById('sr-time').textContent =
+      new Date().toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+    srRender();
+  }
+
+  await srRefresh();
+  setInterval(srRefresh, 5000);
 }
 
 // ===== BULK QR GENERATOR =====
