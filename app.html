@@ -4944,6 +4944,42 @@ async function bulkAddGuests() {
   });
 
   const progress = document.getElementById('bulk-progress');
+
+  // ═══ حماية التكرار (v139) ═══
+  // ليش: صارت حالة أُضيفت فيها قائمة مرتين، فصار 410 سجل بدل 310.
+  // النتيجة كانت: الضيفة لها سجلان بباركودين، واحد ينمسح والثاني يظل
+  // "ما دخلت" للأبد — فتشتكي العميلة أن الباركود ما اشتغل.
+  // الحماية تنبّه فقط ولا تمنع: القرار يبقى لك (قد يكون فيه تشابه أسماء حقيقي).
+  const existing = new Set((allGuests || []).map(g => String(g.name || '').trim()));
+  const dupInList = rows.filter(r => existing.has(String(r.name || '').trim()));
+
+  // تكرار داخل النص الملصوق نفسه
+  const seen = new Set(), dupInText = [];
+  rows.forEach(r => {
+    const n = String(r.name || '').trim();
+    if (seen.has(n)) dupInText.push(n); else seen.add(n);
+  });
+
+  if (dupInList.length || dupInText.length) {
+    let msg = '⚠️ تنبيه قبل الإضافة:\n\n';
+    if (dupInList.length) {
+      msg += `• ${dupInList.length} اسم موجود أصلاً بالمناسبة:\n  `
+           + dupInList.slice(0, 8).map(r => r.name).join(' · ')
+           + (dupInList.length > 8 ? ` ... و${dupInList.length - 8} غيرهم` : '') + '\n\n';
+    }
+    if (dupInText.length) {
+      msg += `• ${dupInText.length} اسم مكرر داخل القائمة الملصوقة نفسها\n\n`;
+    }
+    msg += 'لو كانت أسماء متشابهة لأشخاص مختلفين (نورة ونورة) فهذا طبيعي — اضغطي موافق.\n\n'
+         + 'لكن لو كنتِ تضيفين القائمة مرة ثانية بالغلط، اضغطي إلغاء.\n\n'
+         + `الإجمالي بعد الإضافة سيصير: ${(allGuests || []).length + rows.length} سجل.`;
+    if (!confirm(msg)) {
+      progress.style.display = 'block';
+      progress.textContent = 'تم إلغاء الإضافة — ما انضاف ولا سجل.';
+      return;
+    }
+  }
+
   progress.style.display = 'block';
   progress.textContent = `جاري إضافة ${rows.length} ضيفة...`;
 
@@ -7238,7 +7274,7 @@ async function showScanReportPage(eventId) {
       box.innerHTML = out.length ? out.map(g => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #f0e6da">
           <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
-          <div style="font-size:12px;color:#bbb;font-weight:700">لم يدخل</div>
+          <div style="font-size:12px;color:#bbb;font-weight:700">لم يدخلوا</div>
         </div>`).join('')
         : '<div style="padding:40px;text-align:center;color:#bbb;font-size:14px">دخل الجميع</div>';
       return;
