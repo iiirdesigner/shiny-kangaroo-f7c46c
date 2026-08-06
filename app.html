@@ -1470,8 +1470,8 @@ function injectIcons(root=document) {
     <div id="rsvp-status-msg" style="display:none;margin-top:20px;padding:16px;border-radius:12px;font-weight:600"></div>
 
     <div id="rsvp-actions" class="rsvp-buttons">
-      <button class="btn btn-accept" onclick="submitRsvp('confirmed')"><span data-ic="check" data-ic-size="16"></span> سأحضر</button>
-      <button class="btn btn-decline btn-secondary" onclick="showDeclineForm()"><span data-ic="x" data-ic-size="16"></span> لن أتمكن</button>
+      <button class="btn btn-accept" onclick="submitRsvp('confirmed')"><span data-ic="check" data-ic-size="16"></span> تأكيد الحضور</button>
+      <button class="btn btn-decline btn-secondary" onclick="showDeclineForm()"><span data-ic="x" data-ic-size="16"></span> اعتذار</button>
     </div>
 
     <div id="rsvp-decline-form" style="display:none;margin-top:16px">
@@ -3702,11 +3702,15 @@ async function loadEventCover(input) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+        // 1000px / جودة 0.85 كانت تطلع الدعوة مكسّرة بشاشات الجوال العالية
+        // (الجوال يعرضها بعرض الشاشة كامل فيتضخم كل بكسل) — رُفعت v139
+        const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
         canvas.width = img.width * scale;
         canvas.height = img.height * scale;
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        const cx = canvas.getContext('2d');
+        cx.imageSmoothingQuality = 'high';
+        cx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
       };
       img.src = e.target.result;
     };
@@ -7072,7 +7076,10 @@ async function showLivePage(eventId) {
           <div style="font-size:12px;color:${g.scan_count > 0 ? '#059669' : '#B08A54'};font-weight:700;white-space:nowrap">${g.scan_count > 0 ? '<span data-ic="check" data-ic-size="16"></span> دخلت' : 'أكدت'}</div>
         </div>`).join('') : emptyMsg('لا توجد تأكيدات بعد');
     } else {
-      const a = liveData.guests.filter(g => g.scan_count > 0);
+      // ترتيب بوقت الدخول — الأحدث أولاً (كانت تطلع عشوائية) — أُصلح v139
+      const a = liveData.guests.filter(g => g.scan_count > 0)
+        .slice()
+        .sort((x, y) => new Date(y.last_scanned_at || 0) - new Date(x.last_scanned_at || 0));
       box.innerHTML = a.length ? a.map(g => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #f0e6da">
           <div>
@@ -7111,14 +7118,18 @@ async function showLivePage(eventId) {
     const pct = total ? Math.round(attended.length / total * 100) : 0;
 
     document.getElementById('live-stats').innerHTML = [
-      ['دخلوا', attended.length + companions, '#059669'],
-      ['أكدوا', confirmed, color],
-      ['اعتذروا', declined, '#DC2626'],
-      ['الكل', total, '#666']
-    ].map(([l,n,c]) => `
+      // الرقم = عدد الضيفات اللي دخلن (نفس عدد الأسطر بالقائمة تحت).
+      // المرافقون يُعرضون بسطر منفصل — كانوا مجموعين بالرقم فيطلع أكبر من القائمة
+      // وتحتار العميلة من وين جا الفرق. — أُصلح v139
+      ['دخلوا', attended.length, '#059669', companions > 0 ? `+${companions} مرافق` : ''],
+      ['أكدوا', confirmed, color, ''],
+      ['اعتذروا', declined, '#DC2626', ''],
+      ['الكل', total, '#666', '']
+    ].map(([l,n,c,extra]) => `
       <div style="background:#fff;border-radius:14px;padding:16px 8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.04)">
         <div style="font-size:26px;font-weight:800;color:${c}">${n}</div>
         <div style="font-size:11.5px;color:#888;margin-top:2px">${l}</div>
+        ${extra ? `<div style="font-size:10.5px;color:#B08A54;margin-top:2px;font-weight:700">${extra}</div>` : ''}
       </div>`).join('');
 
     document.getElementById('live-pct').textContent = pct + '%';
