@@ -7200,13 +7200,13 @@ async function showScanReportPage(eventId) {
         </div>
 
         <div id="sr-dup-box" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:16px;padding:14px 16px;margin-bottom:16px">
-          <div style="font-weight:800;font-size:13.5px;color:#B91C1C;margin-bottom:8px">تكرر مسح باركودهن</div>
+          <div style="font-weight:800;font-size:13.5px;color:#B91C1C;margin-bottom:8px">تكرر مسح باركودهم</div>
           <div id="sr-dup-list" style="font-size:12.5px;color:#7F1D1D;line-height:2"></div>
         </div>
 
         <div style="display:flex;gap:6px;margin-bottom:14px">
-          <button onclick="srTab('in')"  id="sr-t-in"  style="flex:1;padding:11px 6px;border:none;border-radius:12px;background:${color};color:#fff;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer">دخلن</button>
-          <button onclick="srTab('out')" id="sr-t-out" style="flex:1;padding:11px 6px;border:none;border-radius:12px;background:#fff;color:#333;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer">لم يدخلن</button>
+          <button onclick="srTab('in')"  id="sr-t-in"  style="flex:1;padding:11px 6px;border:none;border-radius:12px;background:${color};color:#fff;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer">دخلوا</button>
+          <button onclick="srTab('out')" id="sr-t-out" style="flex:1;padding:11px 6px;border:none;border-radius:12px;background:#fff;color:#333;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer">لم يدخلوا</button>
         </div>
 
         <div id="sr-list" style="background:#fff;border-radius:16px;padding:8px;min-height:200px;box-shadow:0 2px 12px rgba(0,0,0,.04)"></div>
@@ -7238,7 +7238,7 @@ async function showScanReportPage(eventId) {
       box.innerHTML = out.length ? out.map(g => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #f0e6da">
           <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
-          <div style="font-size:12px;color:#bbb;font-weight:700">لم تدخل</div>
+          <div style="font-size:12px;color:#bbb;font-weight:700">لم يدخل</div>
         </div>`).join('')
         : '<div style="padding:40px;text-align:center;color:#bbb;font-size:14px">دخل الجميع</div>';
       return;
@@ -7253,7 +7253,7 @@ async function showScanReportPage(eventId) {
         <div style="min-width:0">
           <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
           ${g.companions_count > 0 ? `<div style="font-size:12px;color:#888;margin-top:2px">مع ${g.companions_count} مرافق</div>` : ''}
-          ${g.scan_count > 1 ? `<div style="font-size:11.5px;color:#DC2626;margin-top:2px;font-weight:700">تكرر مسحها ${g.scan_count} مرات</div>` : ''}
+          ${g.scan_count > 1 ? `<div style="font-size:11.5px;color:#DC2626;margin-top:2px;font-weight:700">تكرر مسحه ${g.scan_count} مرات</div>` : ''}
         </div>
         <div style="text-align:left;white-space:nowrap">
           <div style="font-size:12px;color:#059669;font-weight:700">دخلت</div>
@@ -7281,8 +7281,8 @@ async function showScanReportPage(eventId) {
     const pct     = total ? Math.round(entered.length / total * 100) : 0;
 
     document.getElementById('sr-stats').innerHTML = [
-      ['دخلن', entered.length, '#059669', comp > 0 ? `+${comp} مرافق` : ''],
-      ['لم يدخلن', total - entered.length, '#B08A54', ''],
+      ['دخلوا', entered.length, '#059669', comp > 0 ? `+${comp} مرافق` : ''],
+      ['لم يدخلوا', total - entered.length, '#B08A54', ''],
       ['إجمالي المدعوات', total, '#666', '']
     ].map(([l,n,c,extra]) => `
       <div style="background:#fff;border-radius:14px;padding:16px 8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.04)">
