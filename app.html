@@ -7206,9 +7206,17 @@ async function showLivePage(eventId) {
 // ═══════════════════════════════════════════════════════════════
 async function showScanReportPage(eventId) {
   document.getElementById('loading').style.display = 'none';
-  const { data: ev } = await db.rpc('pub_live_event', { event_input: eventId });
-  if (!ev) { document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif" dir="rtl">المناسبة غير موجودة</div>'; return; }
-  const color = ev.color || '#C4956A';
+
+  // نحاول جلب بيانات المناسبة — وإن فشلت لا نستسلم:
+  // البيانات قد تكون موجودة تماماً والمشكلة بجلب العنوان فقط.
+  // (الرسالة القديمة كانت تقول "المناسبة غير موجودة" فتُفزع العميلة بلا سبب)
+  let ev = null;
+  try {
+    const r = await db.rpc('pub_live_event', { event_input: eventId });
+    ev = r.data || null;
+  } catch (e) { ev = null; }
+
+  const color = (ev && ev.color) || '#C4956A';
   document.documentElement.style.setProperty('--rose', color);
 
   document.body.innerHTML = `
@@ -7216,8 +7224,8 @@ async function showScanReportPage(eventId) {
       <div style="max-width:760px;margin:0 auto">
 
         <div style="text-align:center;padding:24px;background:linear-gradient(135deg,${color},${color}dd);border-radius:22px;color:#fff;margin-bottom:16px">
-          <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600">${esc(ev.name)}</div>
-          <div style="opacity:.9;font-size:13.5px;margin-top:6px">${ev.event_date ? new Date(ev.event_date).toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'}) : ''}</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600">${ev ? esc(ev.name) : 'تقرير الدخول'}</div>
+          <div style="opacity:.9;font-size:13.5px;margin-top:6px">${ev && ev.event_date ? new Date(ev.event_date).toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'}) : ''}</div>
           <div style="margin-top:12px;font-size:12px;opacity:.85">
             <span style="display:inline-block;width:7px;height:7px;background:#7CFC9A;border-radius:50%;margin-left:6px;animation:livePulse 1.5s infinite"></span>
             تقرير الدخول — يتحدث تلقائياً · <span id="sr-time">الآن</span>
@@ -7300,14 +7308,26 @@ async function showScanReportPage(eventId) {
   }
 
   async function srRefresh() {
-    let all = [], off = 0;
+    let all = [], off = 0, failed = false;
     while (true) {
       const { data, error } = await db.rpc('pub_live_guests', { event_input: eventId, off_input: off });
-      if (error || !data || !data.length) break;
+      if (error) { failed = true; break; }
+      if (!data || !data.length) break;
       all.push(...data);
       if (data.length < 1000) break;
       off += 1000;
     }
+
+    // لا نقول أبداً "المناسبة غير موجودة" — البيانات محفوظة بالقاعدة
+    // وهذي مشكلة اتصال أو رابط، لا حذف. الرسالة الخاطئة أفزعت عميلة سابقاً.
+    if (failed) {
+      document.getElementById('sr-list').innerHTML =
+        '<div style="padding:36px;text-align:center;color:#B08A54;font-size:14px;line-height:2">'
+        + 'تعذّر تحميل البيانات حالياً<br>'
+        + '<span style="font-size:12.5px;color:#aaa">المناسبة وبياناتها محفوظة — جرّبي تحديث الصفحة</span></div>';
+      return;
+    }
+
     srGuests = all;
 
     const total   = all.length;
