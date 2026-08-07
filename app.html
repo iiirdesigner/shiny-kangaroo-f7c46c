@@ -7342,13 +7342,18 @@ async function showScanReportPage(eventId) {
 
     // المحاولات المرفوضة (الضيفة استهلكت حقها وحاولت مرة ثانية فقُفل عليها).
     // البيانات محفوظة أصلاً بجدول scan_logs من دالة scan_qr_code.
-    // لو الدالة غير موجودة بعد، نكمل بهدوء بدون هذا القسم. (v139)
+    // ملاحظة: pub_live_guests قد تسمّي معرّف الضيفة id أو guest_id — نجرّب الاثنين. (v139)
     try {
       const { data: att } = await db.rpc('pub_scan_attempts', { event_input: eventId });
-      const m = {};
-      (att || []).forEach(a => { m[a.guest_id] = a; });
+      const byId = {}, byName = {};
+      (att || []).forEach(a => {
+        if (!a) return;
+        if (a.guest_id)   byId[String(a.guest_id)] = a;
+        if (a.guest_name) byName[String(a.guest_name).trim()] = a;
+      });
       srGuests.forEach(g => {
-        const a = m[g.id];
+        const idKey = String(g.id || g.guest_id || '');
+        const a = (idKey && byId[idKey]) || byName[String(g.name || '').trim()] || null;
         g._blocked     = a ? Number(a.blocked_count) : 0;
         g._lastBlocked = a ? a.last_blocked : null;
       });
