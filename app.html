@@ -7244,7 +7244,7 @@ async function showScanReportPage(eventId) {
         </div>
 
         <div id="sr-dup-box" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:16px;padding:14px 16px;margin-bottom:16px">
-          <div style="font-weight:800;font-size:13.5px;color:#B91C1C;margin-bottom:8px">تكرر مسح باركودهم</div>
+          <div style="font-weight:800;font-size:13.5px;color:#B91C1C;margin-bottom:8px">حاولوا الدخول بعد إقفال الباركود</div>
           <div id="sr-dup-list" style="font-size:12.5px;color:#7F1D1D;line-height:2"></div>
         </div>
 
@@ -7297,7 +7297,17 @@ async function showScanReportPage(eventId) {
         <div style="min-width:0">
           <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
           ${g.companions_count > 0 ? `<div style="font-size:12px;color:#888;margin-top:2px">مع ${g.companions_count} مرافق</div>` : ''}
-          ${g.scan_count > 1 ? `<div style="font-size:11.5px;color:#DC2626;margin-top:2px;font-weight:700">تكرر مسحه ${g.scan_count} مرات</div>` : ''}
+          ${(() => {
+            const allowed = g.max_scans || (1 + (g.companions_count || 0));
+            let out = '';
+            if (allowed > 1)
+              out += `<div style="font-size:11.5px;color:#888;margin-top:2px">مسحت ${g.scan_count} من ${allowed}</div>`;
+            if (g._blocked > 0)
+              out += `<div style="font-size:11.5px;color:#DC2626;margin-top:2px;font-weight:700">حاولت ${g._blocked} مرة إضافية — مقفلة</div>`;
+            else if (g.scan_count > allowed)
+              out += `<div style="font-size:11.5px;color:#DC2626;margin-top:2px;font-weight:700">تجاوز المسموح — ${g.scan_count} من ${allowed}</div>`;
+            return out;
+          })()}
         </div>
         <div style="text-align:left;white-space:nowrap">
           <div style="font-size:12px;color:#059669;font-weight:700">دخلت</div>
@@ -7330,10 +7340,30 @@ async function showScanReportPage(eventId) {
 
     srGuests = all;
 
+    // المحاولات المرفوضة (الضيفة استهلكت حقها وحاولت مرة ثانية فقُفل عليها).
+    // البيانات محفوظة أصلاً بجدول scan_logs من دالة scan_qr_code.
+    // لو الدالة غير موجودة بعد، نكمل بهدوء بدون هذا القسم. (v139)
+    try {
+      const { data: att } = await db.rpc('pub_scan_attempts', { event_input: eventId });
+      const m = {};
+      (att || []).forEach(a => { m[a.guest_id] = a; });
+      srGuests.forEach(g => {
+        const a = m[g.id];
+        g._blocked     = a ? Number(a.blocked_count) : 0;
+        g._lastBlocked = a ? a.last_blocked : null;
+      });
+    } catch (e) {
+      srGuests.forEach(g => { g._blocked = 0; });
+    }
+
     const total   = all.length;
     const entered = all.filter(g => g.scan_count > 0);
     const comp    = entered.reduce((s,g) => s + (g.companions_count||0), 0);
-    const dups    = entered.filter(g => g.scan_count > 1);
+    // المسموح = الضيفة + مرافقوها (نفس معادلة النظام: max_scans = 1 + companions)
+    // فمن معها مرافق يحق لها مسحتان — وهذا استخدام سليم لا تكرار.
+    // الشرط القديم (scan_count > 1) كان يؤشّر عليها بالأحمر ظلماً. — أُصلح v139
+    const srAllowed = g => g.max_scans || (1 + (g.companions_count || 0));
+    const dups    = entered.filter(g => g._blocked > 0 || g.scan_count > srAllowed(g));
     const pct     = total ? Math.round(entered.length / total * 100) : 0;
 
     document.getElementById('sr-stats').innerHTML = [
@@ -7351,7 +7381,10 @@ async function showScanReportPage(eventId) {
     if (dups.length) {
       dupBox.style.display = 'block';
       document.getElementById('sr-dup-list').innerHTML =
-        dups.map(g => `${esc(g.name)} — ${g.scan_count} مرات`).join('<br>');
+        dups.map(g => g._blocked > 0
+          ? `${esc(g.name)} — حاولت ${g._blocked} مرة إضافية بعد الإقفال`
+          : `${esc(g.name)} — تجاوزت المسموح (${g.scan_count} من ${g.max_scans || (1 + (g.companions_count||0))})`
+        ).join('<br>');
     } else {
       dupBox.style.display = 'none';
     }
