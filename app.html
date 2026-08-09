@@ -3482,7 +3482,7 @@ async function loadEvents() {
         <div class="card-actions">
           <button class="btn btn-primary btn-sm" onclick="openGuestsPage('${e.id}', '${e.name.replace(/'/g,"\\'")}', ${e.max_companions})"><span data-ic="users" data-ic-size="16"></span> الضيوف</button>
           <button class="btn btn-secondary btn-sm" onclick="editEvent('${e.id}')"><span data-ic="edit" data-ic-size="16"></span> تعديل</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')"><span data-ic="trash" data-ic-size="16"></span></button>
+          <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')" style="margin-inline-start:auto;opacity:.55" title="حذف المناسبة"><span data-ic="trash" data-ic-size="16"></span></button>
         </div>
       </div>
     </div>
@@ -3874,7 +3874,36 @@ async function saveEvent() {
 }
 
 async function deleteEvent(id) {
-  if (!confirm('هل أنتِ متأكدة من حذف المناسبة وكل ضيوفها؟')) return;
+  // ═══ حماية مضاعفة من الحذف بالغلط (v139) ═══
+  // ليش: زر الحذف ملاصق لزر "تعديل" وأيقونة بلا كلمة — واللمس الخاطئ
+  // على الجوال سهل جداً، ورسالة "متأكدة؟" تُضغط بالعادة بلا قراءة.
+  // الحذف كاسح ونهائي: يمسح الضيوف وسجلات المسح ولا يمكن استرجاعها.
+  let evName = '', guestCount = null;
+  try {
+    const { data: ev } = await db.from('events').select('name').eq('id', id).single();
+    evName = ev ? String(ev.name || '') : '';
+    const { count } = await db.from('guests').select('*', { count: 'exact', head: true }).eq('event_id', id);
+    guestCount = count;
+  } catch (e) {}
+
+  // لو تعذّر جلب الاسم، نرجع للتأكيد العادي بدل ما نمنع الحذف نهائياً
+  if (!evName) {
+    if (!confirm('⚠️ حذف نهائي — سيُحذف كل الضيوف وسجلات الدخول والتهاني.\nلا يمكن التراجع.\n\nمتأكدة؟')) return;
+  } else {
+    const typed = prompt(
+      '⚠️ حذف نهائي — لا يمكن التراجع عنه\n\n'
+      + `المناسبة: ${evName}\n`
+      + (guestCount !== null ? `عدد الضيوف: ${guestCount}\n` : '')
+      + '\nسيُحذف معها كل الضيوف وسجلات الدخول والتهاني.\n\n'
+      + 'للتأكيد، اكتبي اسم المناسبة بالضبط:'
+    );
+    if (typed === null) return;
+    if (String(typed).trim() !== evName.trim()) {
+      alert('الاسم غير مطابق — تم إلغاء الحذف.\nما انحذف ولا شيء.');
+      return;
+    }
+  }
+
   const r = await dbRun(db.from('events').delete().eq('id', id), 'نحذف المناسبة');
   if (!r.ok) return;
   loadEvents();
