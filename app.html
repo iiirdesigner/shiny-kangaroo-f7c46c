@@ -3825,6 +3825,8 @@ function setDateDropdowns(isoStr) {
   document.getElementById('ed-ampm').value = ampm;
 }
 
+let _savingEvent = false;   // قفل النقرة المزدوجة عند الإنشاء (v139)
+
 async function saveEvent() {
   const id = document.getElementById('edit-event-id').value;
   const name = document.getElementById('event-name').value;
@@ -3864,8 +3866,38 @@ async function saveEvent() {
   if (!r.ok) return;
     logActivity('تعديل مناسبة', name);
   } else {
+    // ═══ حماية من إنشاء مناسبة مكررة (v139) ═══
+    // ليش: رصدنا سجلين لنفس المناسبة أُنشئا بفارق 44 ثانية (نقرة مزدوجة)،
+    // واحد فاضي وواحد فيه كل الدعوات. فلو نُسخ رابط المشرفة من السجل الفاضي
+    // تطلع "مناسبة أخرى" لكل الضيوف. الحماية تنبّه فقط ولا تمنع.
+    if (!_savingEvent) {
+      _savingEvent = true;
+      setTimeout(() => { _savingEvent = false; }, 6000);   // يمنع النقرة المزدوجة
+      try {
+        const { data: same } = await db
+          .from('events')
+          .select('id, created_at')
+          .eq('organizer_id', currentUser.id)
+          .eq('name', name);
+        if (same && same.length) {
+          const mins = Math.round((Date.now() - new Date(same[0].created_at)) / 60000);
+          const warn = same.length === 1 && mins < 10
+            ? `⚠️ أنشأتِ مناسبة بنفس الاسم قبل ${mins < 1 ? 'أقل من دقيقة' : mins + ' دقيقة'}.\n\n`
+              + 'لو كانت نقرة مزدوجة، اضغطي إلغاء — عشان ما يصير سجلان\n'
+              + 'وتطلع "مناسبة أخرى" عند المسح.\n\nتكملين؟'
+            : `⚠️ فيه ${same.length} مناسبة بنفس الاسم "${name}".\n\n`
+              + 'ننصح تميّزين الاسم (مثال: "زفاف أريام وزيد 9 سبتمبر")\n'
+              + 'عشان ما تختلط الروابط والتقارير.\n\nتكملين بنفس الاسم؟';
+          if (!confirm(warn)) { _savingEvent = false; return; }
+        }
+      } catch (e) { /* لو تعذّر الفحص، نكمل عادي */ }
+    } else {
+      return;   // نقرة مكررة خلال ثوانٍ — نتجاهلها بصمت
+    }
+
     const r = await dbRun(db.from('events').insert([data]), 'ننشئ المناسبة');
-  if (!r.ok) return;
+  if (!r.ok) { _savingEvent = false; return; }
+    _savingEvent = false;
     logActivity('إنشاء مناسبة', name);
   }
 
@@ -5128,10 +5160,38 @@ function exportWhatsAppCSV() {
 }
 
 // ===== SUPERVISOR SCANNER LINK =====
-function copyScannerLink() {
+async function copyScannerLink() {
   const link = scannerLink(currentEventId);
   navigator.clipboard.writeText(link);
- alert('تم نسخ رابط المشرفة!\n\nأرسليه للمشرفة عند باب القاعة — يفتح شاشة المسح فقط بدون ما يبان الموقع\n\n' + link);
+
+  // نتحقق: هل المناسبة فيها ضيوف؟ وهل فيه مناسبة ثانية بنفس الاسم؟ (v139)
+  // ليش: لو نُسخ الرابط من سجل فاضي أو من السجل الغلط بين مناسبتين
+  // بنفس الاسم، تطلع "مناسبة أخرى" عند المسح. تنبيه فقط — الرابط منسوخ أصلاً.
+  let extra = '';
+  try {
+    const { count } = await db.from('guests')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', currentEventId);
+
+    if (count === 0) {
+      extra = '\n\n⚠️ تنبيه: هذي المناسبة ما فيها ولا ضيفة!\n'
+            + 'تأكدي أنك بالمناسبة الصحيحة — الرابط ما راح يقرأ أي باركود.';
+    } else {
+      const { data: ev } = await db.from('events').select('name').eq('id', currentEventId).single();
+      if (ev && ev.name) {
+        const { data: same } = await db.from('events')
+          .select('id').eq('organizer_id', currentUser.id).eq('name', ev.name);
+        if (same && same.length > 1) {
+          extra = `\n\n⚠️ فيه ${same.length} مناسبة بنفس الاسم "${ev.name}".\n`
+                + 'تأكدي أن الرابط من نفس المناسبة اللي صدّرتِ دعواتها،\n'
+                + 'وإلا تطلع للمشرفة رسالة "مناسبة أخرى".';
+        }
+      }
+    }
+  } catch (e) { /* لو تعذّر الفحص، نكمل عادي */ }
+
+  alert('تم نسخ رابط المشرفة!\n\nأرسليه للمشرفة عند باب القاعة — يفتح شاشة المسح فقط بدون ما يبان الموقع'
+        + extra + '\n\n' + link);
 }
 
 // ===== ACCESS CODES =====
