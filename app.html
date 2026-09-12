@@ -4854,6 +4854,9 @@ async function processScan(code) {
     try { const u = new URL(code); qrCode = u.searchParams.get('gate') || u.searchParams.get('rsvp'); } catch(e) {}
   }
 
+  // نفس الدعوة قبل ثوانٍ؟ نتجاهلها (نفس منطق ماسح المشرفة) — v139
+  if (scanCooldownHit(qrCode)) return;
+
   // تحقق: الباركود تابع للمناسبة المختارة؟
   const selectedEvent = document.getElementById('scanner-event-select').value;
   const { data: gRow } = await db.from('guests').select('event_id, name').eq('qr_code', qrCode).maybeSingle();
@@ -7166,7 +7169,17 @@ async function showLivePage(eventId) {
           <div>
             <div style="font-weight:700;font-size:14px">${esc(g.name)}</div>
             ${g.companions_count > 0 ? `<div style="font-size:12px;color:#888;margin-top:2px"><span data-ic="users" data-ic-size="16"></span> مع ${g.companions_count} مرافق</div>` : ''}
-            ${g.scan_count > 1 ? `<div style="font-size:11.5px;color:#DC2626;margin-top:2px"><span data-ic="warning" data-ic-size="16"></span> مسح ${g.scan_count} مرات</div>` : ''}
+            ${(() => {
+              // المسموح = الضيفة + مرافقوها (نفس معادلة النظام: max_scans = 1 + companions)
+              // فمن معها مرافق يحق لها مسحتان — استخدام سليم لا تكرار.
+              // الشرط القديم (scan_count > 1) كان يؤشّر عليها بالأحمر ظلماً. — أُصلح v139
+              const allowed = g.max_scans || (1 + (g.companions_count || 0));
+              if (g.scan_count > allowed)
+                return `<div style="font-size:11.5px;color:#DC2626;margin-top:2px"><span data-ic="warning" data-ic-size="16"></span> تجاوز المسموح — ${g.scan_count} من ${allowed}</div>`;
+              if (allowed > 1)
+                return `<div style="font-size:11.5px;color:#888;margin-top:2px">مسحت ${g.scan_count} من ${allowed}</div>`;
+              return '';
+            })()}
           </div>
           <div style="text-align:left;white-space:nowrap">
             <div style="font-size:12px;color:#059669;font-weight:700"><span data-ic="check" data-ic-size="16"></span> دخلت</div>
@@ -7735,20 +7748,70 @@ async function supManual() {
   if (code) await supProcess(code);
 }
 
+// ═══ قراءة معرّف المناسبة من الرابط (v139) ═══
+// يدعم الشكلين: /m/<id>  و  ?scan=<id>
+// يرجّع null لو ما لقى شي — وحينها نرجع للقيمة المحفوظة كما كانت.
+function supEventIdFromUrl() {
+  try {
+    const seg = window.location.pathname.match(/\/m\/([^/?#]+)/);
+    if (seg && seg[1]) return decodeURIComponent(seg[1]);
+    const q = new URLSearchParams(window.location.search).get('scan');
+    if (q) return q;
+  } catch (e) {}
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ⏱️ فترة تهدئة — تمنع مسح نفس الدعوة مرتين خلال ثوانٍ (v139)
+//
+//  المشكلة: زر "مسح التالي" يعيد تحميل الصفحة ويشغّل الكاميرا فوراً،
+//  ولو الجوال لسه مصوّب على نفس الدعوة يقرأها ثانية → "تم المسح من قبل"
+//  مع إن الضيفة أول مرة. (رصدناها بفارق 11 ثانية بسجلات القاعدة)
+//
+//  الحل: نتجاهل *نفس الرمز* لمدة 8 ثوانٍ بعد قراءته.
+//  الدعوة التالية تُمسح فوراً بلا أي تأخير — القفل على الرمز لا على الماسح.
+//  ويبقى محفوظاً بعد إعادة التحميل (sessionStorage) لأن الزر يعيد التحميل.
+// ═══════════════════════════════════════════════════════════════
+const SCAN_COOLDOWN_MS = 8000;
+
+function scanCooldownHit(qrCode) {
+  if (!qrCode) return false;
+  try {
+    const now = Date.now();
+    const raw = sessionStorage.getItem('rc_last_scan');
+    if (raw) {
+      const last = JSON.parse(raw);
+      if (last && last.code === qrCode && (now - last.at) < SCAN_COOLDOWN_MS) {
+        return true;                       // نفس الدعوة قبل قليل — نتجاهلها
+      }
+    }
+    sessionStorage.setItem('rc_last_scan', JSON.stringify({ code: qrCode, at: now }));
+  } catch (e) { /* لو تعذّر التخزين، نكمل عادي */ }
+  return false;
+}
+
 async function supProcess(code) {
   let qrCode = code;
   if (code.includes('gate=') || code.includes('rsvp=')) {
     try { const u = new URL(code); qrCode = u.searchParams.get('gate') || u.searchParams.get('rsvp'); } catch(e) {}
   }
 
+  // نفس الدعوة قبل ثوانٍ؟ نتجاهلها بصمت بدل ما نطلع "تم المسح من قبل" ظلماً
+  if (scanCooldownHit(qrCode)) return;
+
   // بيانات المناسبة (الصور والألوان) — للشاشة الفخمة
   const { data: gateInfo } = await db.rpc('pub_gate_get', { qr_input: qrCode });
   const ev = gateInfo?.events || {};
 
-  // المشرفة تمسح ضيوف مناسبتها فقط
-  if (window._supEventId) {
+  // المشرفة تمسح ضيوف مناسبتها فقط.
+  // نقرأ معرّف المناسبة من *الرابط نفسه* عند كل مسحة، لا من الذاكرة —
+  // لأن القيمة المحفوظة قد تكون من مناسبة فُتحت قبلها بنفس الجوال
+  // (تبويب قديم، زر الخلف، صفحة مستعادة) فتطلع "مناسبة أخرى" ظلماً.
+  // الرابط لا يكذب. — v139
+  const supEventId = supEventIdFromUrl() || window._supEventId;
+  if (supEventId) {
     const { data: g } = await db.rpc('pub_sup_check', { qr_input: qrCode });
-    if (g && g.event_id !== window._supEventId) {
+    if (g && g.event_id !== supEventId) {
       renderGateResult({ status: 'wrong_event', guest: g }, ev, { rescan: true });
       return;
     }
