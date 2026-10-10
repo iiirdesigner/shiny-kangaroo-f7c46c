@@ -1798,7 +1798,7 @@ function injectIcons(root=document) {
 
     <!-- تبويب الباركود -->
     <div id="ev-tab-barcode" class="ev-panel" role="tabpanel">
-      <p class="ev-panel-intro">هذي الإعدادات تخص <b>الباركود نفسه</b> فقط — لونه اللي يظهر بالتنسيق، والشاشات اللي تطلع للمشرفة لما تمسحه عند الباب.</p>
+      <p class="ev-panel-intro">هذي الإعدادات تخص <b>الباركود نفسه</b> فقط — لونه اللي يظهر بالتنسيق، والشاشات اللي تطلع للمشرفة لما تمسحه عند الباب. (صورة الدعوة نفسها بتبويب تأكيد الحضور.)</p>
 
       <div class="form-group">
         <label class="form-label">لون الباركود</label>
@@ -4035,11 +4035,21 @@ function openGuestsPage(eventId, eventName, maxCompanions) {
 
 // ترتيب ذكي: لو الاسمان أرقام → رقمي (1،2،3) · غير كذا → ترتيب الإضافة
 function smartGuestSort(a, b) {
-  const na = String(a.name).trim(), nb = String(b.name).trim();
-  const bothNumbers = /^\d+$/.test(na) && /^\d+$/.test(nb);
-  if (bothNumbers) return parseInt(na) - parseInt(nb);
-  // غير رقمية: بترتيب الإضافة (الأقدم أول)
-  return new Date(a.created_at) - new Date(b.created_at);
+  // ═══ ترتيب ثابت ومتّسق (v140) ═══
+  // المشكلة القديمة: الأرقام تُقارن رقمياً لكن الرقم مع الاسم يُقارن بالتاريخ —
+  // مقارنة غير متّسقة تعطي ترتيباً عشوائياً يتغيّر مع كل إضافة ("الأسماء تتلخبط").
+  // والإضافة الجماعية تعطي الكل نفس التوقيت، فالقاعدة ترجّعهم بترتيب اعتباطي.
+  // الحل: ترتيب كلّي — الأرقام أولاً (رقمياً)، ثم الأسماء بتاريخ الإضافة،
+  // وعند التعادل أبجدياً ثم بالمعرّف — فالنتيجة واحدة مهما تغيّرت القائمة.
+  const na = String(a.name ?? '').trim(), nb = String(b.name ?? '').trim();
+  const an = /^\d+$/.test(na), bn = /^\d+$/.test(nb);
+  if (an !== bn) return an ? -1 : 1;                          // الأرقام قبل الأسماء
+  if (an) { const d = parseInt(na, 10) - parseInt(nb, 10); if (d) return d; }
+  const ta = Date.parse(a.created_at) || 0, tb = Date.parse(b.created_at) || 0;
+  if (ta !== tb) return ta - tb;                              // الأقدم أولاً
+  const c = na.localeCompare(nb, 'ar', { numeric: true });    // تعادل التوقيت: أبجدي ثابت
+  if (c) return c;
+  return String(a.id ?? '').localeCompare(String(b.id ?? '')); // ضمان نهائي
 }
 
 async function loadGuests() {
