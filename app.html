@@ -73,6 +73,29 @@
   /* ===== FORM ===== */
   .form-group { margin-bottom:16px; text-align:right; }
   .form-label { display:block; font-size:13px; font-weight:600; color:var(--text-light); margin-bottom:6px; }
+  /* ═══ تبويبات نموذج المناسبة + تجميع أدوات الضيوف (v140) ═══ */
+  .ev-section-title { font-size:13px; font-weight:800; color:var(--text-light); margin:4px 0 14px; display:flex; align-items:center; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .ev-tabs { display:flex; gap:6px; margin:26px 0 14px; padding:5px; background:var(--rose-light); border-radius:14px; }
+  .ev-tab { flex:1; padding:12px 10px; border:none; border-radius:10px; background:transparent; color:var(--text-light); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; transition:background .2s, color .2s, box-shadow .2s; }
+  .ev-tab:hover { color:var(--text); }
+  .ev-tab.active { background:#fff; color:var(--rose); box-shadow:0 2px 10px rgba(0,0,0,.07); }
+  .ev-panel { animation:evFade .22s ease; }
+  .ev-panel-intro { font-size:12.5px; color:var(--text-light); line-height:1.75; margin:0 0 16px; padding:11px 14px; background:#fff; border:1px dashed var(--border); border-radius:10px; }
+  @keyframes evFade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .gt-group { margin-bottom:12px; }
+  .gt-group:last-child { margin-bottom:0; }
+  .gt-label { font-size:11.5px; font-weight:800; color:var(--text-light); margin-bottom:7px; display:flex; align-items:center; gap:6px; letter-spacing:.2px; }
+  .gt-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
+  .gt-barcode { background:var(--rose-light); padding:10px 12px 12px; border-radius:12px; }
+  .gt-open { background:#F0FDF4; padding:10px 12px 12px; border-radius:12px; }
+  @media (max-width:480px) {
+    .ev-tab { font-size:12.5px; padding:11px 4px; gap:5px; white-space:nowrap; }
+    .ev-tab svg { width:14px; height:14px; }
+  }
+  @media (max-width:360px) {
+    .ev-tab { font-size:12px; }
+    .ev-tab svg { display:none; }
+  }
   .form-input { width:100%; padding:12px 16px; border:2px solid var(--border); border-radius:12px; font-size:16px; transition:border-color 0.2s; background:var(--white); font-family:inherit; direction:rtl; }
   .form-input:focus { outline:none; border-color:var(--rose); }
   .btn { padding:12px 24px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; transition:all 0.2s; font-family:inherit; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
@@ -1455,7 +1478,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-07-31 · 139</span>
+    الإصدار <span style="font-weight:700">2026-10-09 · 140</span>
   </div>
 </div>
 
@@ -1683,14 +1706,19 @@ function injectIcons(root=document) {
 
     <div class="modal-title" id="event-modal-title">إنشاء مناسبة جديدة</div>
     <input type="hidden" id="edit-event-id">
+
+    <!-- ═══ القسم المشترك — يظهر دائماً ويخص المسارين (v140) ═══ -->
+    <div class="ev-section-title"><span data-ic="settings" data-ic-size="15"></span> الإعدادات الأساسية <span style="font-weight:400;opacity:.75">— الاسم والتاريخ والموقع والتصميم</span></div>
     <div class="form-group">
       <label class="form-label">اسم المناسبة *</label>
       <input type="text" id="event-name" class="form-input" placeholder="مثال: حفل زواج نورة">
     </div>
+
     <div class="form-group">
       <label class="form-label">الوصف</label>
       <textarea id="event-desc" class="form-input" rows="2" placeholder="وصف المناسبة..."></textarea>
     </div>
+
     <div class="form-group">
       <label class="form-label">صورة الدعوة <span style="color:var(--text-light);font-weight:400">(تظهر داخل صفحة الدعوة لما تفتحها الضيفة)</span></label>
       <div style="display:flex;align-items:center;gap:12px">
@@ -1714,64 +1742,6 @@ function injectIcons(root=document) {
       <p style="font-size:11.5px;color:var(--text-light);margin-top:6px;line-height:1.6">📐 الأفضل مقاس عريض (مثل 1200×630). لو ما رفعتِ غلافاً، يظهر شعار الموقع.</p>
     </div>
 
-    <!-- شاشات المسح المخصصة -->
-    <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
-      <label class="form-label" style="margin-bottom:10px"><span data-ic="desktop" data-ic-size="16"></span> شاشات المسح (من نفس تصميم الدعوة)</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div style="text-align:center">
-          <div id="event-success-preview" style="width:100%;aspect-ratio:3/4;border-radius:12px;border:2px dashed #6EE7B7;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;background:#ECFDF5;margin-bottom:8px"><span data-ic="check" data-ic-size="16"></span></div>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer;font-size:12px;width:100%">
-            شاشة القبول (المسح الأول)
-            <input type="file" accept="image/*" style="display:none" onchange="loadScanScreen(this, 'success')">
-          </label>
-        </div>
-        <div style="text-align:center">
-          <div id="event-lock-preview" style="width:100%;aspect-ratio:3/4;border-radius:12px;border:2px dashed #FCA5A5;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;background:#FEF2F2;margin-bottom:8px"><span data-ic="lock" data-ic-size="16"></span></div>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer;font-size:12px;width:100%">
-            شاشة القفل (تم المسح سابقاً)
-            <input type="file" accept="image/*" style="display:none" onchange="loadScanScreen(this, 'lock')">
-          </label>
-        </div>
-      </div>
-      <p style="font-size:11px;color:var(--text-light);margin-top:8px">اختياري — لو ما رفعتي صور تطلع الشاشات الافتراضية</p>
-    </div>
-
-    <!-- نصوص الرابط الموحد -->
-    <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
-      <label class="form-label" style="margin-bottom:4px"><span data-ic="check" data-ic-size="16"></span> نصوص الرابط الموحد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
-      <p style="font-size:11.5px;color:var(--text-light);margin:0 0 10px;line-height:1.6">تظهر لضيوف رابط التأكيد الموحد — لو تركتيها فاضية يظهر النص الأساسي المكتوب داخل كل خانة.</p>
-      <input type="text" id="event-open-intro" class="form-input" placeholder="يشرّفنا حضورك — أكّدي لنا من هنا" style="margin-bottom:10px" maxlength="120">
-      <input type="text" id="event-open-confirm" class="form-input" placeholder="في انتظارك — يسعدنا تشريفك" style="margin-bottom:10px" maxlength="160">
-      <input type="text" id="event-open-decline" class="form-input" placeholder="شكراً لإخبارنا — نتمنى لك دوام الصحة والعافية" maxlength="160">
-      <label class="form-label" style="margin:14px 0 4px">قائمة المسموح لهم بالرد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
-      <p style="font-size:11.5px;color:var(--text-light);margin:0 0 8px;line-height:1.6">اكتبي أسماء الضيوف أو أرقام جوالاتهم — كل واحد بسطر. لو عبّيتيها ما يقدر يأكد أحد غير المذكورين فيها (حتى لو انرسل له الرابط). اتركيها فاضية ليكون الرابط مفتوحاً للجميع.</p>
-      <textarea id="event-open-allowlist" class="form-input" rows="4" placeholder="نورة العتيبي&#10;0501234567&#10;سارة"></textarea>
-    </div>
-
-    <!-- إعداد صفحة الشكر -->
-    <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
-      <label class="form-label" style="margin-bottom:8px" data-ic="flower">صفحة الشكر</label>
-      <select class="form-input" id="event-thanks-mode" onchange="toggleThanksMsg()">
-        <option value="interactive">تفاعلية — الضيوف يكتبون تهانيهم</option>
-        <option value="message">رسالة فقط — تعرض كلمة شكر بدون كتابة</option>
-      </select>
-      <input type="text" id="event-thanks-title" class="form-input" placeholder="عنوان صفحة الشكر (مثال: شكراً لتشريفكم)" style="margin-top:10px">
-      <textarea id="event-thanks-msg" class="form-input" rows="2" placeholder="نص رسالة الشكر (اختياري)" style="margin-top:10px"></textarea>
-    </div>
-
-    <!-- نصوص ردود الضيوف (تأكيد/اعتذار) -->
-    <div class="form-group" style="background:#F0FDF4;padding:14px;border-radius:12px">
-      <label class="form-label" style="margin-bottom:8px"><span data-ic="chat" data-ic-size="16"></span> نصوص ردود الضيوف (قابلة للتعديل)</label>
-      <input type="text" id="event-confirm-msg" class="form-input" placeholder="رسالة التأكيد (مثال: تم تأكيد حضورك! في انتظارك)" style="margin-bottom:10px">
-      <input type="text" id="event-decline-msg" class="form-input" placeholder="رسالة الاعتذار (مثال: نأسف لعدم تمكنك، نراك في مناسبة قادمة)">
-    </div>
-
-    <!-- نص رسالة الواتساب -->
-    <div class="form-group">
-      <label class="form-label"><span data-ic="chat" data-ic-size="16"></span> نص رسالة الدعوة بالواتساب</label>
-      <textarea id="event-wa-msg" class="form-input" rows="4" placeholder="اتركيه فارغاً للنص الافتراضي"></textarea>
-      <p style="font-size:11px;color:var(--text-light);margin-top:6px">استخدمي <code style="background:var(--rose-light);padding:1px 6px;border-radius:5px">{الاسم}</code> ليُستبدل باسم الضيفة تلقائياً. ولا تكتبي الرابط — يُضاف تلقائياً في النهاية.</p>
-    </div>
     <!-- تفعيل التاريخ -->
     <div class="form-group" style="background:var(--rose-light);padding:12px;border-radius:12px">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -1832,14 +1802,73 @@ function injectIcons(root=document) {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-group">
-        <label class="form-label">لون المناسبة</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="color" id="event-color" value="#C4956A" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer" oninput="document.getElementById('event-color-hex').value=this.value">
-          <input type="text" id="event-color-hex" class="form-input" value="#C4956A" dir="ltr" style="flex:1;font-size:16px" oninput="document.getElementById('event-color').value=this.value">
-        </div>
+    <div class="form-group">
+      <label class="form-label">لون المناسبة</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="color" id="event-color" value="#C4956A" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer" oninput="document.getElementById('event-color-hex').value=this.value">
+        <input type="text" id="event-color-hex" class="form-input" value="#C4956A" dir="ltr" style="flex:1;font-size:16px" oninput="document.getElementById('event-color').value=this.value">
       </div>
+    </div>
+
+    <!-- ═══ تبويبات المسارين — الباركود / التأكيد الموحد (v140) ═══
+         طلب العميلة: فصل إعدادات الباركود عن إعدادات الرابط الموحد لأنهما كانا
+         متداخلين بصف واحد والمنظّمات يختلط عليهن أي خانة لأي مسار.
+         نقل مواضع فقط — ولا حقل انحذف ولا انضاف، ودالة الحفظ لم تُمسّ. -->
+    <div class="ev-tabs" role="tablist">
+      <button type="button" id="ev-tabbtn-barcode" class="ev-tab active" onclick="evTab('barcode')" role="tab" aria-selected="true" aria-controls="ev-tab-barcode"><span data-ic="qr" data-ic-size="16"></span> دعوات الباركود</button>
+      <button type="button" id="ev-tabbtn-open" class="ev-tab" onclick="evTab('open')" role="tab" aria-selected="false" aria-controls="ev-tab-open"><span data-ic="check" data-ic-size="16"></span> رابط التأكيد الموحد</button>
+    </div>
+
+    <!-- تبويب الباركود -->
+    <div id="ev-tab-barcode" class="ev-panel" role="tabpanel">
+      <p class="ev-panel-intro">هذي الإعدادات تخص المناسبات اللي ترسلين فيها <b>دعوة بباركود لكل ضيفة</b> — شاشات المسح عند الباب، صفحة الشكر، رسائل الرد، نص الواتساب، ولون الباركود.</p>
+      <!-- شاشات المسح المخصصة -->
+      <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
+        <label class="form-label" style="margin-bottom:10px"><span data-ic="desktop" data-ic-size="16"></span> شاشات المسح (من نفس تصميم الدعوة)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="text-align:center">
+            <div id="event-success-preview" style="width:100%;aspect-ratio:3/4;border-radius:12px;border:2px dashed #6EE7B7;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;background:#ECFDF5;margin-bottom:8px"><span data-ic="check" data-ic-size="16"></span></div>
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;font-size:12px;width:100%">
+              شاشة القبول (المسح الأول)
+              <input type="file" accept="image/*" style="display:none" onchange="loadScanScreen(this, 'success')">
+            </label>
+          </div>
+          <div style="text-align:center">
+            <div id="event-lock-preview" style="width:100%;aspect-ratio:3/4;border-radius:12px;border:2px dashed #FCA5A5;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;background:#FEF2F2;margin-bottom:8px"><span data-ic="lock" data-ic-size="16"></span></div>
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;font-size:12px;width:100%">
+              شاشة القفل (تم المسح سابقاً)
+              <input type="file" accept="image/*" style="display:none" onchange="loadScanScreen(this, 'lock')">
+            </label>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-light);margin-top:8px">اختياري — لو ما رفعتي صور تطلع الشاشات الافتراضية</p>
+      </div>
+
+      <!-- إعداد صفحة الشكر -->
+      <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
+        <label class="form-label" style="margin-bottom:8px" data-ic="flower">صفحة الشكر</label>
+        <select class="form-input" id="event-thanks-mode" onchange="toggleThanksMsg()">
+          <option value="interactive">تفاعلية — الضيوف يكتبون تهانيهم</option>
+          <option value="message">رسالة فقط — تعرض كلمة شكر بدون كتابة</option>
+        </select>
+        <input type="text" id="event-thanks-title" class="form-input" placeholder="عنوان صفحة الشكر (مثال: شكراً لتشريفكم)" style="margin-top:10px">
+        <textarea id="event-thanks-msg" class="form-input" rows="2" placeholder="نص رسالة الشكر (اختياري)" style="margin-top:10px"></textarea>
+      </div>
+
+      <!-- نصوص ردود الضيوف (تأكيد/اعتذار) -->
+      <div class="form-group" style="background:#F0FDF4;padding:14px;border-radius:12px">
+        <label class="form-label" style="margin-bottom:8px"><span data-ic="chat" data-ic-size="16"></span> نصوص ردود الضيوف (قابلة للتعديل)</label>
+        <input type="text" id="event-confirm-msg" class="form-input" placeholder="رسالة التأكيد (مثال: تم تأكيد حضورك! في انتظارك)" style="margin-bottom:10px">
+        <input type="text" id="event-decline-msg" class="form-input" placeholder="رسالة الاعتذار (مثال: نأسف لعدم تمكنك، نراك في مناسبة قادمة)">
+      </div>
+
+      <!-- نص رسالة الواتساب -->
+      <div class="form-group">
+        <label class="form-label"><span data-ic="chat" data-ic-size="16"></span> نص رسالة الدعوة بالواتساب</label>
+        <textarea id="event-wa-msg" class="form-input" rows="4" placeholder="اتركيه فارغاً للنص الافتراضي"></textarea>
+        <p style="font-size:11px;color:var(--text-light);margin-top:6px">استخدمي <code style="background:var(--rose-light);padding:1px 6px;border-radius:5px">{الاسم}</code> ليُستبدل باسم الضيفة تلقائياً. ولا تكتبي الرابط — يُضاف تلقائياً في النهاية.</p>
+      </div>
+
       <div class="form-group">
         <label class="form-label">لون الباركود</label>
         <div style="display:flex;gap:8px;align-items:center">
@@ -1847,7 +1876,26 @@ function injectIcons(root=document) {
           <input type="text" id="event-qr-hex" class="form-input" value="#2C1810" dir="ltr" style="flex:1;font-size:16px" oninput="document.getElementById('event-qr-color').value=this.value">
         </div>
       </div>
+
     </div>
+
+    <!-- تبويب التأكيد الموحد -->
+    <div id="ev-tab-open" class="ev-panel" role="tabpanel" style="display:none">
+      <p class="ev-panel-intro">هذي الإعدادات تخص <b>رابط التأكيد الموحد</b> — رابط واحد يُرسل للجميع، يفتحه الضيف ويكتب اسمه ويؤكد حضوره بدون باركود.</p>
+      <!-- نصوص الرابط الموحد -->
+      <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
+        <label class="form-label" style="margin-bottom:4px"><span data-ic="check" data-ic-size="16"></span> نصوص الرابط الموحد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
+        <p style="font-size:11.5px;color:var(--text-light);margin:0 0 10px;line-height:1.6">تظهر لضيوف رابط التأكيد الموحد — لو تركتيها فاضية يظهر النص الأساسي المكتوب داخل كل خانة.</p>
+        <input type="text" id="event-open-intro" class="form-input" placeholder="يشرّفنا حضورك — أكّدي لنا من هنا" style="margin-bottom:10px" maxlength="120">
+        <input type="text" id="event-open-confirm" class="form-input" placeholder="في انتظارك — يسعدنا تشريفك" style="margin-bottom:10px" maxlength="160">
+        <input type="text" id="event-open-decline" class="form-input" placeholder="شكراً لإخبارنا — نتمنى لك دوام الصحة والعافية" maxlength="160">
+        <label class="form-label" style="margin:14px 0 4px">قائمة المسموح لهم بالرد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
+        <p style="font-size:11.5px;color:var(--text-light);margin:0 0 8px;line-height:1.6">اكتبي أسماء الضيوف أو أرقام جوالاتهم — كل واحد بسطر. لو عبّيتيها ما يقدر يأكد أحد غير المذكورين فيها (حتى لو انرسل له الرابط). اتركيها فاضية ليكون الرابط مفتوحاً للجميع.</p>
+        <textarea id="event-open-allowlist" class="form-input" rows="4" placeholder="نورة العتيبي&#10;0501234567&#10;سارة"></textarea>
+      </div>
+
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="showPage('events')">إلغاء</button>
       <button class="btn btn-primary" onclick="saveEvent()">حفظ المناسبة</button>
@@ -1878,17 +1926,33 @@ function injectIcons(root=document) {
         <div class="table-wrap">
           <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
             <!-- أدوات رئيسية -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:8px;margin-bottom:14px" id="guest-tools-grid">
-              <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
-              <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
-              <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
-              <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
-              <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
-              <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
-              <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
-              <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
-              <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
-              <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
+            <!-- أدوات رئيسية — مجمّعة حسب المسار (v140): عام / باركود / تأكيد موحد -->
+            <div id="guest-tools-grid" style="margin-bottom:14px">
+              <div class="gt-group">
+                <div class="gt-label">عام</div>
+                <div class="gt-row">
+                  <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
+                  <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
+                </div>
+              </div>
+              <div class="gt-group gt-barcode">
+                <div class="gt-label"><span data-ic="qr" data-ic-size="14"></span> دعوات الباركود</div>
+                <div class="gt-row">
+                  <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
+                  <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
+                  <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
+                  <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
+                  <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
+                  <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
+                </div>
+              </div>
+              <div class="gt-group gt-open">
+                <div class="gt-label"><span data-ic="check" data-ic-size="14"></span> رابط التأكيد الموحد</div>
+                <div class="gt-row">
+                  <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
+                  <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
+                </div>
+              </div>
             </div>
             <!-- بحث وفلترة -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -3096,6 +3160,7 @@ function showPage(page) {
   if (page === 'users') { loadUsers(); loadAccessCodes(); }
   if (page === 'scanner') loadScannerEvents();
   if (page === 'designer') dzInit();
+  if (page === 'event-form') evTab('barcode');   // يفتح دائماً على تبويب الباركود (v140)
   if (page === 'settings') loadSettings();
 }
 
@@ -3823,6 +3888,18 @@ function setDateDropdowns(isoStr) {
   const roundedMin = Math.round(dt.getMinutes() / 5) * 5 % 60;
   document.getElementById('ed-min').value = roundedMin;
   document.getElementById('ed-ampm').value = ampm;
+}
+
+// ═══ تبويبات نموذج المناسبة (v140) ═══
+// عرض/إخفاء فقط — الحقول تبقى بالصفحة بالحالتين، فدالة الحفظ تقرأها عادي.
+function evTab(name) {
+  const isBc = name !== 'open';
+  const pB = document.getElementById('ev-tab-barcode'), pO = document.getElementById('ev-tab-open');
+  const bB = document.getElementById('ev-tabbtn-barcode'), bO = document.getElementById('ev-tabbtn-open');
+  if (pB) pB.style.display = isBc ? 'block' : 'none';
+  if (pO) pO.style.display = isBc ? 'none'  : 'block';
+  if (bB) { bB.classList.toggle('active', isBc);  bB.setAttribute('aria-selected', isBc); }
+  if (bO) { bO.classList.toggle('active', !isBc); bO.setAttribute('aria-selected', !isBc); }
 }
 
 let _savingEvent = false;   // قفل النقرة المزدوجة عند الإنشاء (v139)
