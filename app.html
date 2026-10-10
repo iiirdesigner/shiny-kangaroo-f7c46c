@@ -1719,29 +1719,6 @@ function injectIcons(root=document) {
       <textarea id="event-desc" class="form-input" rows="2" placeholder="وصف المناسبة..."></textarea>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">صورة الدعوة <span style="color:var(--text-light);font-weight:400">(تظهر داخل صفحة الدعوة لما تفتحها الضيفة)</span></label>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div id="event-cover-preview" style="width:70px;height:70px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;background:var(--rose-light);flex-shrink:0"><span data-ic="image" data-ic-size="16"></span></div>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
-          <span data-ic="camera" data-ic-size="16"></span> اختيار صورة
-          <input type="file" accept="image/*" style="display:none" onchange="loadEventCover(this)">
-        </label>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">غلاف معاينة الواتساب <span style="color:var(--text-light);font-weight:400">(اختياري — يظهر داخل البوكس فوق الرابط)</span></label>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div id="event-preview-img" style="width:112px;height:59px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;background:var(--rose-light);flex-shrink:0"><span data-ic="image" data-ic-size="16"></span></div>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
-          <span data-ic="camera" data-ic-size="16"></span> اختيار غلاف
-          <input type="file" accept="image/*" style="display:none" onchange="loadEventPreview(this)">
-        </label>
-      </div>
-      <p style="font-size:11.5px;color:var(--text-light);margin-top:6px;line-height:1.6">📐 الأفضل مقاس عريض (مثل 1200×630). لو ما رفعتِ غلافاً، يظهر شعار الموقع.</p>
-    </div>
-
     <!-- تفعيل التاريخ -->
     <div class="form-group" style="background:var(--rose-light);padding:12px;border-radius:12px">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -1816,12 +1793,21 @@ function injectIcons(root=document) {
          نقل مواضع فقط — ولا حقل انحذف ولا انضاف، ودالة الحفظ لم تُمسّ. -->
     <div class="ev-tabs" role="tablist">
       <button type="button" id="ev-tabbtn-barcode" class="ev-tab active" onclick="evTab('barcode')" role="tab" aria-selected="true" aria-controls="ev-tab-barcode"><span data-ic="qr" data-ic-size="16"></span> دعوات الباركود</button>
-      <button type="button" id="ev-tabbtn-open" class="ev-tab" onclick="evTab('open')" role="tab" aria-selected="false" aria-controls="ev-tab-open"><span data-ic="check" data-ic-size="16"></span> رابط التأكيد الموحد</button>
+      <button type="button" id="ev-tabbtn-open" class="ev-tab" onclick="evTab('open')" role="tab" aria-selected="false" aria-controls="ev-tab-open"><span data-ic="check" data-ic-size="16"></span> تأكيد الحضور</button>
     </div>
 
     <!-- تبويب الباركود -->
     <div id="ev-tab-barcode" class="ev-panel" role="tabpanel">
-      <p class="ev-panel-intro">هذي الإعدادات تخص المناسبات اللي ترسلين فيها <b>دعوة بباركود لكل ضيفة</b> — شاشات المسح عند الباب، صفحة الشكر، رسائل الرد، نص الواتساب، ولون الباركود.</p>
+      <p class="ev-panel-intro">هذي الإعدادات تخص <b>الباركود نفسه</b> فقط — لونه اللي يظهر بالتنسيق، والشاشات اللي تطلع للمشرفة لما تمسحه عند الباب.</p>
+
+      <div class="form-group">
+        <label class="form-label">لون الباركود</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="event-qr-color" value="#2C1810" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer" oninput="document.getElementById('event-qr-hex').value=this.value">
+          <input type="text" id="event-qr-hex" class="form-input" value="#2C1810" dir="ltr" style="flex:1;font-size:16px" oninput="document.getElementById('event-qr-color').value=this.value">
+        </div>
+      </div>
+
       <!-- شاشات المسح المخصصة -->
       <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
         <label class="form-label" style="margin-bottom:10px"><span data-ic="desktop" data-ic-size="16"></span> شاشات المسح (من نفس تصميم الدعوة)</label>
@@ -1844,6 +1830,51 @@ function injectIcons(root=document) {
         <p style="font-size:11px;color:var(--text-light);margin-top:8px">اختياري — لو ما رفعتي صور تطلع الشاشات الافتراضية</p>
       </div>
 
+    </div>
+
+    <!-- تبويب التأكيد الموحد -->
+    <div id="ev-tab-open" class="ev-panel" role="tabpanel" style="display:none">
+      <p class="ev-panel-intro">كل ما يخص <b>تأكيد الحضور</b> بمكان واحد — صورة الدعوة وغلاف الواتساب، رسالة الواتساب اللي تُرسل للضيفة، ردّها وصفحة الشكر، وكذلك الرابط الموحد اللي يُرسل للجميع بدون باركود.</p>
+
+      <div class="gt-label" style="margin-top:4px"><span data-ic="image" data-ic-size="14"></span> الصورة اللي تشوفها الضيفة (بالمسارين)</div>
+      <div class="form-group">
+        <label class="form-label">صورة الدعوة <span style="color:var(--text-light);font-weight:400">(تظهر داخل صفحة الدعوة لما تفتحها الضيفة)</span></label>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div id="event-cover-preview" style="width:70px;height:70px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;background:var(--rose-light);flex-shrink:0"><span data-ic="image" data-ic-size="16"></span></div>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+            <span data-ic="camera" data-ic-size="16"></span> اختيار صورة
+            <input type="file" accept="image/*" style="display:none" onchange="loadEventCover(this)">
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">غلاف معاينة الواتساب <span style="color:var(--text-light);font-weight:400">(اختياري — يظهر داخل البوكس فوق الرابط)</span></label>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div id="event-preview-img" style="width:112px;height:59px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;background:var(--rose-light);flex-shrink:0"><span data-ic="image" data-ic-size="16"></span></div>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+            <span data-ic="camera" data-ic-size="16"></span> اختيار غلاف
+            <input type="file" accept="image/*" style="display:none" onchange="loadEventPreview(this)">
+          </label>
+        </div>
+        <p style="font-size:11.5px;color:var(--text-light);margin-top:6px;line-height:1.6">📐 الأفضل مقاس عريض (مثل 1200×630). لو ما رفعتِ غلافاً، يظهر شعار الموقع.</p>
+      </div>
+
+      <div class="gt-label" style="margin-top:4px"><span data-ic="qr" data-ic-size="14"></span> تأكيد الضيفة من دعوتها بالباركود</div>
+      <!-- نص رسالة الواتساب -->
+      <div class="form-group">
+        <label class="form-label"><span data-ic="chat" data-ic-size="16"></span> نص رسالة الدعوة بالواتساب</label>
+        <textarea id="event-wa-msg" class="form-input" rows="4" placeholder="اتركيه فارغاً للنص الافتراضي"></textarea>
+        <p style="font-size:11px;color:var(--text-light);margin-top:6px">استخدمي <code style="background:var(--rose-light);padding:1px 6px;border-radius:5px">{الاسم}</code> ليُستبدل باسم الضيفة تلقائياً. ولا تكتبي الرابط — يُضاف تلقائياً في النهاية.</p>
+      </div>
+
+      <!-- نصوص ردود الضيوف (تأكيد/اعتذار) -->
+      <div class="form-group" style="background:#F0FDF4;padding:14px;border-radius:12px">
+        <label class="form-label" style="margin-bottom:8px"><span data-ic="chat" data-ic-size="16"></span> نصوص ردود الضيوف (قابلة للتعديل)</label>
+        <input type="text" id="event-confirm-msg" class="form-input" placeholder="رسالة التأكيد (مثال: تم تأكيد حضورك! في انتظارك)" style="margin-bottom:10px">
+        <input type="text" id="event-decline-msg" class="form-input" placeholder="رسالة الاعتذار (مثال: نأسف لعدم تمكنك، نراك في مناسبة قادمة)">
+      </div>
+
       <!-- إعداد صفحة الشكر -->
       <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
         <label class="form-label" style="margin-bottom:8px" data-ic="flower">صفحة الشكر</label>
@@ -1855,33 +1886,7 @@ function injectIcons(root=document) {
         <textarea id="event-thanks-msg" class="form-input" rows="2" placeholder="نص رسالة الشكر (اختياري)" style="margin-top:10px"></textarea>
       </div>
 
-      <!-- نصوص ردود الضيوف (تأكيد/اعتذار) -->
-      <div class="form-group" style="background:#F0FDF4;padding:14px;border-radius:12px">
-        <label class="form-label" style="margin-bottom:8px"><span data-ic="chat" data-ic-size="16"></span> نصوص ردود الضيوف (قابلة للتعديل)</label>
-        <input type="text" id="event-confirm-msg" class="form-input" placeholder="رسالة التأكيد (مثال: تم تأكيد حضورك! في انتظارك)" style="margin-bottom:10px">
-        <input type="text" id="event-decline-msg" class="form-input" placeholder="رسالة الاعتذار (مثال: نأسف لعدم تمكنك، نراك في مناسبة قادمة)">
-      </div>
-
-      <!-- نص رسالة الواتساب -->
-      <div class="form-group">
-        <label class="form-label"><span data-ic="chat" data-ic-size="16"></span> نص رسالة الدعوة بالواتساب</label>
-        <textarea id="event-wa-msg" class="form-input" rows="4" placeholder="اتركيه فارغاً للنص الافتراضي"></textarea>
-        <p style="font-size:11px;color:var(--text-light);margin-top:6px">استخدمي <code style="background:var(--rose-light);padding:1px 6px;border-radius:5px">{الاسم}</code> ليُستبدل باسم الضيفة تلقائياً. ولا تكتبي الرابط — يُضاف تلقائياً في النهاية.</p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">لون الباركود</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="color" id="event-qr-color" value="#2C1810" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer" oninput="document.getElementById('event-qr-hex').value=this.value">
-          <input type="text" id="event-qr-hex" class="form-input" value="#2C1810" dir="ltr" style="flex:1;font-size:16px" oninput="document.getElementById('event-qr-color').value=this.value">
-        </div>
-      </div>
-
-    </div>
-
-    <!-- تبويب التأكيد الموحد -->
-    <div id="ev-tab-open" class="ev-panel" role="tabpanel" style="display:none">
-      <p class="ev-panel-intro">هذي الإعدادات تخص <b>رابط التأكيد الموحد</b> — رابط واحد يُرسل للجميع، يفتحه الضيف ويكتب اسمه ويؤكد حضوره بدون باركود.</p>
+      <div class="gt-label" style="margin-top:10px"><span data-ic="check" data-ic-size="14"></span> رابط التأكيد الموحد (بدون باركود)</div>
       <!-- نصوص الرابط الموحد -->
       <div class="form-group" style="background:var(--rose-light);padding:14px;border-radius:12px">
         <label class="form-label" style="margin-bottom:4px"><span data-ic="check" data-ic-size="16"></span> نصوص الرابط الموحد <span style="color:var(--text-light);font-weight:400">(اختياري)</span></label>
@@ -1926,32 +1931,34 @@ function injectIcons(root=document) {
         <div class="table-wrap">
           <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
             <!-- أدوات رئيسية -->
-            <!-- أدوات رئيسية — مجمّعة حسب المسار (v140): عام / باركود / تأكيد موحد -->
+            <!-- أدوات رئيسية — مجمّعة حسب المسار (v140): عام / الباركود / تأكيد الحضور -->
             <div id="guest-tools-grid" style="margin-bottom:14px">
               <div class="gt-group">
                 <div class="gt-label">عام</div>
                 <div class="gt-row">
-                  <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
-                  <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
+              <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
+              <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
                 </div>
               </div>
               <div class="gt-group gt-barcode">
-                <div class="gt-label"><span data-ic="qr" data-ic-size="14"></span> دعوات الباركود</div>
+                <div class="gt-label"><span data-ic="qr" data-ic-size="14"></span> دعوات الباركود — توليده ومسحه عند الباب</div>
                 <div class="gt-row">
-                  <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
-                  <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
-                  <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
-                  <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
-                  <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
-                  <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
+              <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
+              <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
+              <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
+              <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
                 </div>
               </div>
               <div class="gt-group gt-open">
-                <div class="gt-label"><span data-ic="check" data-ic-size="14"></span> رابط التأكيد الموحد</div>
+                <div class="gt-label"><span data-ic="check" data-ic-size="14"></span> تأكيد الحضور — بالإرسال أو بالرابط الموحد</div>
                 <div class="gt-row">
-                  <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
-                  <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
+              <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
+              <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
+              <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
+              <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
                 </div>
+              </div>
+            </div>
               </div>
             </div>
             <!-- بحث وفلترة -->
