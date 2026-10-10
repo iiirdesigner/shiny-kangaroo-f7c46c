@@ -77,6 +77,7 @@
   .ev-section-title { font-size:13px; font-weight:800; color:var(--text-light); margin:4px 0 14px; display:flex; align-items:center; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); }
   /* التبويبات بنفس ملمس أزرار الموقع البارز (v141): غير النشط = زجاج .btn-secondary · النشط = تدرج .btn-primary */
   .ev-tabs { display:flex; gap:10px; margin:26px 0 14px; }
+  #guest-tools-grid .ev-tabs { margin:4px 0 12px; }
   .ev-tab {
     flex:1; padding:13px 10px; border-radius:14px; font-family:inherit; font-size:14px; font-weight:800; cursor:pointer;
     display:inline-flex; align-items:center; justify-content:center; gap:7px; position:relative;
@@ -1953,32 +1954,35 @@ function injectIcons(root=document) {
 
         <div class="table-wrap">
           <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
-            <!-- أدوات رئيسية -->
-            <!-- أدوات رئيسية — مجمّعة حسب المسار (v140): عام / الباركود / تأكيد الحضور -->
+            <!-- أدوات رئيسية — بنفس بنية صفحة المناسبة (v141): عام دائماً ثم تبويبا الباركود/التأكيد -->
             <div id="guest-tools-grid" style="margin-bottom:14px">
               <div class="gt-group">
                 <div class="gt-label">عام</div>
                 <div class="gt-row">
-              <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
-              <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
+                  <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
+                  <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
                 </div>
               </div>
-              <div class="gt-group gt-barcode">
-                <div class="gt-label"><span data-ic="qr" data-ic-size="14"></span> دعوات الباركود — توليده ومسحه عند الباب</div>
+              <div class="ev-tabs" role="tablist">
+                <button type="button" id="gt-tabbtn-barcode" class="ev-tab active" onclick="gtTab('barcode')" role="tab" aria-selected="true" aria-controls="gt-tab-barcode"><span data-ic="qr" data-ic-size="16"></span> دعوات الباركود</button>
+                <button type="button" id="gt-tabbtn-open" class="ev-tab" onclick="gtTab('open')" role="tab" aria-selected="false" aria-controls="gt-tab-open"><span data-ic="check" data-ic-size="16"></span> تأكيد الحضور</button>
+              </div>
+              <div id="gt-tab-barcode" class="gt-group gt-barcode ev-panel" role="tabpanel">
+                <div class="gt-label">توليد الباركود ومسحه عند الباب</div>
                 <div class="gt-row">
-              <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
-              <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
-              <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
-              <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
+                  <button class="btn btn-secondary" onclick="downloadAllQR(event)" style="padding:13px 10px;font-size:13.5px" data-ic="download">الباركودات ZIP</button>
+                  <button class="btn btn-secondary" onclick="openBulkQR()" style="padding:13px 10px;font-size:13.5px" data-ic="qr">مولّد باركود سريع</button>
+                  <button class="btn btn-secondary" onclick="copyScannerLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">رابط المشرفة</button>
+                  <button class="btn btn-secondary" onclick="copyScanReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="scan">تقرير المسح (الدخول فقط)</button>
                 </div>
               </div>
-              <div class="gt-group gt-open">
-                <div class="gt-label"><span data-ic="check" data-ic-size="14"></span> تأكيد الحضور — بالإرسال أو بالرابط الموحد</div>
+              <div id="gt-tab-open" class="gt-group gt-open ev-panel" role="tabpanel" style="display:none">
+                <div class="gt-label">بالإرسال أو بالرابط الموحد</div>
                 <div class="gt-row">
-              <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
-              <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
-              <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
-              <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
+                  <button class="btn btn-secondary" onclick="openWhatsAppBulk()" style="padding:13px 10px;font-size:13.5px" data-ic="chat">إرسال واتساب</button>
+                  <button class="btn btn-secondary" onclick="copyLiveLink()" style="padding:13px 10px;font-size:13.5px" data-ic="refresh">تقرير مباشر (يتحدث تلقائياً)</button>
+                  <button class="btn btn-secondary" onclick="copyOpenRsvpLink()" style="padding:13px 10px;font-size:13.5px" data-ic="check">رابط التأكيد الموحد</button>
+                  <button class="btn btn-secondary" onclick="copyOpenReportLink()" style="padding:13px 10px;font-size:13.5px" data-ic="users">تقرير التأكيد الموحد</button>
                 </div>
               </div>
             </div>
@@ -3189,6 +3193,7 @@ function showPage(page) {
   if (page === 'scanner') loadScannerEvents();
   if (page === 'designer') dzInit();
   if (page === 'event-form') evTab('barcode');   // يفتح دائماً على تبويب الباركود (v140)
+  if (page === 'guests') gtTab('barcode');         // نفس السلوك لأدوات الضيوف (v141)
   if (page === 'settings') loadSettings();
 }
 
@@ -3924,6 +3929,17 @@ function evTab(name) {
   const isBc = name !== 'open';
   const pB = document.getElementById('ev-tab-barcode'), pO = document.getElementById('ev-tab-open');
   const bB = document.getElementById('ev-tabbtn-barcode'), bO = document.getElementById('ev-tabbtn-open');
+  if (pB) pB.style.display = isBc ? 'block' : 'none';
+  if (pO) pO.style.display = isBc ? 'none'  : 'block';
+  if (bB) { bB.classList.toggle('active', isBc);  bB.setAttribute('aria-selected', isBc); }
+  if (bO) { bO.classList.toggle('active', !isBc); bO.setAttribute('aria-selected', !isBc); }
+}
+
+// ═══ تبويبات أدوات الضيوف (v141) — نفس منطق evTab ═══
+function gtTab(name) {
+  const isBc = name !== 'open';
+  const pB = document.getElementById('gt-tab-barcode'), pO = document.getElementById('gt-tab-open');
+  const bB = document.getElementById('gt-tabbtn-barcode'), bO = document.getElementById('gt-tabbtn-open');
   if (pB) pB.style.display = isBc ? 'block' : 'none';
   if (pO) pO.style.display = isBc ? 'none'  : 'block';
   if (bB) { bB.classList.toggle('active', isBc);  bB.setAttribute('aria-selected', isBc); }
