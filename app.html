@@ -109,6 +109,26 @@
   .gt-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
   .gt-barcode { background:linear-gradient(135deg, rgba(253,247,240,.92), rgba(245,233,214,.55)); }
   .gt-open { background:linear-gradient(135deg, rgba(240,253,244,.92), rgba(220,245,228,.5)); }
+  /* v142: وضع "دعوات الباركود" بصفحة الضيوف — القائمة أسماء فقط + مظهر مختلف عن وضع التأكيد */
+  #page-guests.gt-mode-barcode .gt-open-only { display:none !important; }
+  #page-guests.gt-mode-barcode thead th:nth-child(2), #page-guests.gt-mode-barcode thead th:nth-child(3),
+  #page-guests.gt-mode-barcode thead th:nth-child(4), #page-guests.gt-mode-barcode thead th:nth-child(5),
+  #page-guests.gt-mode-barcode #guests-table-body td:nth-child(2), #page-guests.gt-mode-barcode #guests-table-body td:nth-child(3),
+  #page-guests.gt-mode-barcode #guests-table-body td:nth-child(4), #page-guests.gt-mode-barcode #guests-table-body td:nth-child(5) { display:none; }
+  #page-guests.gt-mode-barcode .g-rsvp-msg { display:none; }
+  #page-guests.gt-mode-barcode .stats-grid { grid-template-columns:1fr !important; }
+  #page-guests.gt-mode-barcode thead th { background:linear-gradient(135deg, rgba(253,247,240,.96), rgba(245,233,214,.75)); color:var(--brand-accent); }
+  #page-guests.gt-mode-barcode thead th:last-child, #page-guests.gt-mode-barcode #guests-table-body td:last-child { width:1%; white-space:nowrap; text-align:center; }
+  #page-guests.gt-mode-barcode #guests-table-body { counter-reset: gtrow; }
+  #page-guests.gt-mode-barcode #guests-table-body tr { counter-increment: gtrow; background:rgba(253,247,240,.35); }
+  #page-guests.gt-mode-barcode #guests-table-body tr:nth-child(even) { background:rgba(245,233,214,.3); }
+  #page-guests.gt-mode-barcode #guests-table-body td:first-child { font-size:15px; padding:13px 16px; }
+  #page-guests.gt-mode-barcode #guests-table-body td:first-child strong::before {
+    content: counter(gtrow); display:inline-block; min-width:26px; padding:1px 7px; margin-inline-end:10px;
+    border-radius:8px; text-align:center; font-size:11.5px; font-weight:800; color:var(--brand-accent);
+    background:rgba(255,255,255,.85); border:1px solid rgba(255,255,255,.9);
+    box-shadow:0 2px 8px -4px rgba(61,46,34,.25), 0 1px 0 rgba(255,255,255,.85) inset; vertical-align:middle; }
+  #page-guests.gt-mode-barcode #guests-table-body td[colspan] strong::before { content:none; }
   @media (max-width:480px) {
     .ev-tab { font-size:12.5px; padding:11px 4px; gap:5px; white-space:nowrap; }
     .ev-tab svg { width:14px; height:14px; }
@@ -1499,7 +1519,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-10-10 · 141</span>
+    الإصدار <span style="font-weight:700">2026-10-10 · 142</span>
   </div>
 </div>
 
@@ -1934,7 +1954,7 @@ function injectIcons(root=document) {
       </div>
 
       <!-- EVENT GUESTS PAGE -->
-      <div id="page-guests" class="page">
+      <div id="page-guests" class="page gt-mode-barcode">
         <div class="page-header">
           <div>
             <button class="btn btn-secondary btn-sm" onclick="showPage('events')" style="margin-bottom:8px"><span data-ic="back" data-ic-size="16"></span> رجوع</button>
@@ -1946,26 +1966,23 @@ function injectIcons(root=document) {
         <!-- Stats -->
         <div class="stats-grid" style="margin-bottom:20px">
           <div class="stat-card" style="cursor:pointer" onclick="filterByStatus('')"><div class="stat-icon" data-ic="users" data-ic-size="22"></div><div class="stat-number" id="g-stat-total">0</div><div class="stat-label">إجمالي الضيوف</div></div>
-          <div class="stat-card" style="cursor:pointer" onclick="filterByStatus('confirmed')"><div class="stat-icon" data-ic="check" data-ic-size="22"></div><div class="stat-number" id="g-stat-confirmed" style="color:#34D399">0</div><div class="stat-label">تأكيد حضور</div></div>
-          <div class="stat-card" style="cursor:pointer" onclick="filterByStatus('pending')"><div class="stat-icon"><span data-ic="clock"></span></div><div class="stat-number" id="g-stat-pending" style="color:#FBBF24">0</div><div class="stat-label">بانتظار الرد</div></div>
-          <div class="stat-card" style="cursor:pointer" onclick="filterByStatus('declined')"><div class="stat-icon"><span data-ic="mail" data-ic-size="16"></span></div><div class="stat-number" id="g-stat-declined" style="color:#F87171">0</div><div class="stat-label">اعتذار</div></div>
+          <div class="stat-card gt-open-only" style="cursor:pointer" onclick="filterByStatus('confirmed')"><div class="stat-icon" data-ic="check" data-ic-size="22"></div><div class="stat-number" id="g-stat-confirmed" style="color:#34D399">0</div><div class="stat-label">تأكيد حضور</div></div>
+          <div class="stat-card gt-open-only" style="cursor:pointer" onclick="filterByStatus('pending')"><div class="stat-icon"><span data-ic="clock"></span></div><div class="stat-number" id="g-stat-pending" style="color:#FBBF24">0</div><div class="stat-label">بانتظار الرد</div></div>
+          <div class="stat-card gt-open-only" style="cursor:pointer" onclick="filterByStatus('declined')"><div class="stat-icon"><span data-ic="mail" data-ic-size="16"></span></div><div class="stat-number" id="g-stat-declined" style="color:#F87171">0</div><div class="stat-label">اعتذار</div></div>
         </div>
-        <div id="g-expected" style="background:linear-gradient(90deg,var(--rose-light),#fff);border:1px solid var(--gold);border-radius:14px;padding:14px 20px;font-size:14.5px;margin-bottom:20px;text-align:center"></div>
+        <div id="g-expected" class="gt-open-only" style="background:linear-gradient(90deg,var(--rose-light),#fff);border:1px solid var(--gold);border-radius:14px;padding:14px 20px;font-size:14.5px;margin-bottom:20px;text-align:center"></div>
 
         <div class="table-wrap">
           <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
-            <!-- أدوات رئيسية — بنفس بنية صفحة المناسبة (v141): عام دائماً ثم تبويبا الباركود/التأكيد -->
+            <!-- أدوات رئيسية (v142): زرّا الإضافة والتقرير بدون بطاقة "عام" ثم تبويبا الباركود/التأكيد -->
             <div id="guest-tools-grid" style="margin-bottom:14px">
-              <div class="gt-group">
-                <div class="gt-label">عام</div>
-                <div class="gt-row">
-                  <button class="btn btn-primary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
-                  <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
-                </div>
+              <div class="gt-row" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--border)">
+                <button class="btn btn-secondary" onclick="openBulkAdd()" style="padding:13px 10px;font-size:13.5px" data-ic="users">إضافة دفعة وحدة</button>
+                <button class="btn btn-secondary" onclick="generateEventReport()" style="padding:13px 10px;font-size:13.5px" data-ic="download">تقرير PDF</button>
               </div>
               <div class="ev-tabs" role="tablist">
-                <button type="button" id="gt-tabbtn-barcode" class="ev-tab active" onclick="gtTab('barcode')" role="tab" aria-selected="true" aria-controls="gt-tab-barcode"><span data-ic="qr" data-ic-size="16"></span> دعوات الباركود</button>
-                <button type="button" id="gt-tabbtn-open" class="ev-tab" onclick="gtTab('open')" role="tab" aria-selected="false" aria-controls="gt-tab-open"><span data-ic="check" data-ic-size="16"></span> تأكيد الحضور</button>
+                <button type="button" id="gt-tabbtn-barcode" class="ev-tab active" onclick="gtTab('barcode', true)" role="tab" aria-selected="true" aria-controls="gt-tab-barcode"><span data-ic="qr" data-ic-size="16"></span> دعوات الباركود</button>
+                <button type="button" id="gt-tabbtn-open" class="ev-tab" onclick="gtTab('open', true)" role="tab" aria-selected="false" aria-controls="gt-tab-open"><span data-ic="check" data-ic-size="16"></span> تأكيد الحضور</button>
               </div>
               <div id="gt-tab-barcode" class="gt-group gt-barcode ev-panel" role="tabpanel">
                 <div class="gt-label">توليد الباركود ومسحه عند الباب</div>
@@ -1989,7 +2006,7 @@ function injectIcons(root=document) {
             <!-- بحث وفلترة -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
  <input type="text" class="search-input" placeholder=" بحث بالاسم أو الجوال..." oninput="filterGuests(this.value)" id="guest-search" style="flex:1;min-width:180px">
-              <select class="search-input" onchange="filterByStatus(this.value)" style="min-width:120px">
+              <select id="guest-status-filter" class="search-input gt-open-only" onchange="filterByStatus(this.value)" style="min-width:120px">
                 <option value="">كل الحالات</option>
                 <option value="__unsent">لم تُرسل لهم الدعوة</option>
                 <option value="__sent">أُرسلت لهم</option>
@@ -1997,9 +2014,9 @@ function injectIcons(root=document) {
                 <option value="confirmed">تأكيد حضور</option>
                 <option value="declined">اعتذار</option>
               </select>
-              <button class="btn btn-secondary btn-sm" onclick="shortenCodes()" style="padding:10px 16px"><span data-ic="link" data-ic-size="15"></span> تقصير الروابط</button>
-              <button class="btn btn-secondary btn-sm" onclick="remindPending()" style="padding:10px 16px"><span data-ic="mail" data-ic-size="15"></span> تذكير من لم يرد</button>
-              <button class="btn btn-secondary btn-sm" onclick="openBulkCompanions()" style="padding:10px 16px"><span data-ic="users" data-ic-size="15"></span> تعديل المرافقين</button>
+              <button class="btn btn-secondary btn-sm gt-open-only" onclick="shortenCodes()" style="padding:10px 16px"><span data-ic="link" data-ic-size="15"></span> تقصير الروابط</button>
+              <button class="btn btn-secondary btn-sm gt-open-only" onclick="remindPending()" style="padding:10px 16px"><span data-ic="mail" data-ic-size="15"></span> تذكير من لم يرد</button>
+              <button class="btn btn-secondary btn-sm gt-open-only" onclick="openBulkCompanions()" style="padding:10px 16px"><span data-ic="users" data-ic-size="15"></span> تعديل المرافقين</button>
               <button class="btn btn-secondary btn-sm" onclick="openBulkDelete()" style="padding:10px 16px;color:#B42318"><span data-ic="trash" data-ic-size="15"></span> حذف مجموعة</button>
               <button class="btn btn-secondary btn-sm" onclick="exportGuests()" style="padding:10px 16px" data-ic="download" data-ic-size="16">Excel</button>
             </div>
@@ -2512,9 +2529,9 @@ function injectIcons(root=document) {
     <div id="gs-status" style="text-align:center;font-size:13px;color:var(--text-light);margin-bottom:18px"></div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="sheet-btn" onclick="gsAction('qr')"><span data-ic="qr"></span> عرض الباركود</button>
-      <button class="sheet-btn" onclick="gsAction('wa')"><span data-ic="chat"></span> إرسال الدعوة واتساب</button>
+      <button class="sheet-btn gs-open-only" onclick="gsAction('wa')"><span data-ic="chat"></span> إرسال الدعوة واتساب</button>
       <button class="sheet-btn" onclick="gsAction('edit')"><span data-ic="edit"></span> تعديل البيانات</button>
-      <button class="sheet-btn" onclick="gsAction('reset')"><span data-ic="refresh"></span> إعادة تفعيل الباركود</button>
+      <button class="sheet-btn gs-open-only" onclick="gsAction('reset')"><span data-ic="refresh"></span> إعادة تفعيل الباركود</button>
       <button class="sheet-btn" onclick="gsAction('delete')" style="color:var(--error);background:#FEF2F2"><span data-ic="trash"></span> حذف الضيفة</button>
     </div>
     <button onclick="closeGuestSheet()" style="width:100%;margin-top:12px;padding:15px;border:none;border-radius:14px;background:var(--rose-light);color:var(--text);font-weight:700;font-size:15px;font-family:inherit;cursor:pointer">إلغاء</button>
@@ -3193,7 +3210,7 @@ function showPage(page) {
   if (page === 'scanner') loadScannerEvents();
   if (page === 'designer') dzInit();
   if (page === 'event-form') evTab('barcode');   // يفتح دائماً على تبويب الباركود (v140)
-  if (page === 'guests') gtTab('barcode');         // نفس السلوك لأدوات الضيوف (v141)
+  if (page === 'guests') { gtTab('barcode'); const _sf = document.getElementById('guest-status-filter'); if (_sf) _sf.value = ''; }         // نفس السلوك لأدوات الضيوف (v141)
   if (page === 'settings') loadSettings();
 }
 
@@ -3936,14 +3953,26 @@ function evTab(name) {
 }
 
 // ═══ تبويبات أدوات الضيوف (v141) — نفس منطق evTab ═══
-function gtTab(name) {
+let _gtMode = 'barcode';   // v142: وضع صفحة الضيوف الحالي (barcode | open)
+
+function gtTab(name, fromClick) {
   const isBc = name !== 'open';
+  _gtMode = isBc ? 'barcode' : 'open';
   const pB = document.getElementById('gt-tab-barcode'), pO = document.getElementById('gt-tab-open');
   const bB = document.getElementById('gt-tabbtn-barcode'), bO = document.getElementById('gt-tabbtn-open');
   if (pB) pB.style.display = isBc ? 'block' : 'none';
   if (pO) pO.style.display = isBc ? 'none'  : 'block';
   if (bB) { bB.classList.toggle('active', isBc);  bB.setAttribute('aria-selected', isBc); }
   if (bO) { bO.classList.toggle('active', !isBc); bO.setAttribute('aria-selected', !isBc); }
+  const pg = document.getElementById('page-guests');
+  if (pg) pg.classList.toggle('gt-mode-barcode', isBc);
+  // عند التبديل بالنقر فقط: نرجّع الفلاتر لوضعها الطبيعي حتى ما تبقى القائمة مفلترة بحالة مخفية
+  if (fromClick) {
+    const sel = document.getElementById('guest-status-filter'), q = document.getElementById('guest-search');
+    if (sel) sel.value = '';
+    if (q) q.value = '';
+    if (Array.isArray(allGuests) && document.getElementById('guests-table-body')) renderGuests(allGuests);
+  }
 }
 
 let _savingEvent = false;   // قفل النقرة المزدوجة عند الإنشاء (v139)
@@ -4137,7 +4166,7 @@ function renderGuests(guests) {
   }
   tbody.innerHTML = guests.map(g => `
     <tr>
-      <td><strong>${esc(g.name)}</strong>${g.table_number ? ` <span style="background:var(--rose-light);color:var(--rose);padding:2px 10px;border-radius:12px;font-size:11.5px;font-weight:700"><span data-ic="chair" data-ic-size="16"></span> ${esc(g.table_number)}</span>` : ''}${g.rsvp_message ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;background:#FFF7ED;padding:6px 10px;border-radius:8px;border-right:3px solid var(--gold)"><span data-ic="mail" data-ic-size="16"></span> ${esc(g.rsvp_message)}</div>` : ''}</td>
+      <td><strong>${esc(g.name)}</strong>${g.table_number ? ` <span style="background:var(--rose-light);color:var(--rose);padding:2px 10px;border-radius:12px;font-size:11.5px;font-weight:700"><span data-ic="chair" data-ic-size="16"></span> ${esc(g.table_number)}</span>` : ''}${g.rsvp_message ? `<div class="g-rsvp-msg" style="font-size:12px;color:var(--text-light);margin-top:4px;background:#FFF7ED;padding:6px 10px;border-radius:8px;border-right:3px solid var(--gold)"><span data-ic="mail" data-ic-size="16"></span> ${esc(g.rsvp_message)}</div>` : ''}</td>
       <td dir="ltr">${esc(g.phone) || '-'}</td>
       <td data-label="إجراءات" style="text-align:center">${g.companions_count}</td>
       <td data-label="الحالة"><div style="display:flex;align-items:center;gap:5px;white-space:nowrap"><span class="badge badge-${g.status}" style="font-size:11px;padding:3px 9px">${statusTextShort(g.status)}</span>${
@@ -4440,6 +4469,8 @@ function openGuestActions(id) {
   if (!_sheetGuest) return;
   document.getElementById('gs-name').textContent = _sheetGuest.name;
   document.getElementById('gs-status').innerHTML = statusText(_sheetGuest.status) + (_sheetGuest.phone ? ' — ' + esc(_sheetGuest.phone) : '');
+  // v142: بوضع الباركود تظهر 3 إجراءات فقط (عرض الباركود · تعديل البيانات · حذف الضيفة)
+  document.querySelectorAll('#guest-sheet .gs-open-only').forEach(b => { b.style.display = (_gtMode === 'barcode') ? 'none' : ''; });
   document.getElementById('guest-sheet').style.display = 'flex';
   injectIcons(document.getElementById('guest-sheet'));
 }
