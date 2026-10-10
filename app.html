@@ -1478,7 +1478,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-10-09 · 140</span>
+    الإصدار <span style="font-weight:700">2026-10-10 · 141</span>
   </div>
 </div>
 
@@ -1763,12 +1763,15 @@ function injectIcons(root=document) {
       </div>
     </div>
 
-    <div class="form-group">
+    <!-- مخفي بطلب العميلة (v141): "ما يستفيدون منه ويسألون عنه". الحقل باقٍ بالكود
+         لأن الحفظ يقرأه؛ قيمته الافتراضية 0 وتبقى محفوظة للمناسبات القديمة. لإرجاعه: احذفي display:none -->
+    <div class="form-group" style="display:none">
       <label class="form-label">عدد المرافقين المسموح لكل ضيفة</label>
       <input type="number" id="event-companions" class="form-input" value="0" min="0" max="99">
     </div>
 
-    <div class="form-group">
+    <!-- مخفي بطلب العميلة (v141). لإرجاعه: احذفي display:none -->
+    <div class="form-group" style="display:none">
       <label class="form-label"><span data-ic="sparkle" data-ic-size="16"></span> ثيمات فاخرة</label>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
         <button type="button" onclick="applyLuxTheme('royal')" style="height:52px;border:none;border-radius:12px;cursor:pointer;background:linear-gradient(135deg,#B8860B,#8B6914);color:#fff;font-size:11px;font-weight:700;font-family:inherit;box-shadow:0 2px 8px rgba(184,134,11,.4)">ملكي<br>ذهبي</button>
@@ -5087,7 +5090,12 @@ async function bulkAddGuests() {
   const maxScans = parseInt(document.getElementById('bulk-max-scans').value) || 1;
 
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const rows = lines.map(line => {
+  // ═══ حفظ ترتيب اللصق (v141) ═══
+  // القاعدة تعطي كل الدفعة نفس التوقيت (now() واحد للإدراج كله)، فيضيع ترتيب
+  // اللصق ويُعرض الأسماء أبجدياً. نعطي كل صف توقيتاً يزيد ملّي ثانية عن سابقه
+  // فيُحفظ الترتيب كما كُتب. ولو رفضت القاعدة الحقل، نعيد الإدراج بدونه (تحت).
+  const _t0 = Date.now();
+  const rows = lines.map((line, i) => {
     const parts = line.split(/[,،]/).map(p => p.trim());
     return {
       event_id: currentEventId,
@@ -5095,7 +5103,8 @@ async function bulkAddGuests() {
       phone: parts[1] || null,
       companions_count: companions,
       max_scans: maxScans,
-      qr_code: generateQRCode()
+      qr_code: generateQRCode(),
+      created_at: new Date(_t0 + i).toISOString()
     };
   });
 
@@ -5139,7 +5148,12 @@ async function bulkAddGuests() {
   progress.style.display = 'block';
   progress.textContent = `جاري إضافة ${rows.length} ضيفة...`;
 
-  const { error } = await db.from('guests').insert(rows);
+  let { error } = await db.from('guests').insert(rows);
+  if (error) {
+    // حماية: لو السبب حقل التوقيت، نعيد الإدراج بدونه — الإضافة ما تنكسر بأي حال (v141)
+    const retry = await db.from('guests').insert(rows.map(({ created_at, ...r }) => r));
+    error = retry.error;
+  }
   if (error) {
     progress.textContent = 'حصل خطأ: ' + error.message;
     return;
