@@ -1517,7 +1517,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-10-10 · 144</span>
+    الإصدار <span style="font-weight:700">2026-10-11 · 145</span>
   </div>
 </div>
 
@@ -2529,7 +2529,7 @@ function injectIcons(root=document) {
       <button class="sheet-btn" onclick="gsAction('qr')"><span data-ic="qr"></span> عرض الباركود</button>
       <button class="sheet-btn gs-open-only" onclick="gsAction('wa')"><span data-ic="chat"></span> إرسال الدعوة واتساب</button>
       <button class="sheet-btn" onclick="gsAction('edit')"><span data-ic="edit"></span> تعديل البيانات</button>
-      <button class="sheet-btn gs-open-only" onclick="gsAction('reset')"><span data-ic="refresh"></span> إعادة تفعيل الباركود</button>
+      <button class="sheet-btn" onclick="gsAction('reset')"><span data-ic="refresh"></span> إعادة تفعيل الباركود</button>
       <button class="sheet-btn" onclick="gsAction('delete')" style="color:var(--error);background:#FEF2F2"><span data-ic="trash"></span> حذف الضيفة</button>
     </div>
     <button onclick="closeGuestSheet()" style="width:100%;margin-top:12px;padding:15px;border:none;border-radius:14px;background:var(--rose-light);color:var(--text);font-weight:700;font-size:15px;font-family:inherit;cursor:pointer">إلغاء</button>
@@ -3208,6 +3208,7 @@ function showPage(page) {
   if (page === 'scanner') loadScannerEvents();
   if (page === 'designer') dzInit();
   if (page === 'event-form') evTab('barcode');   // يفتح دائماً على تبويب الباركود (v140)
+  { const _cd = document.getElementById('scan-cd-panel'); if (_cd && page !== 'scanner') _cd.remove(); }   // v145: لوحة "نفس الدعوة" ما تبقى فوق الصفحات الثانية
   if (page === 'guests') { gtTab('barcode'); const _sf = document.getElementById('guest-status-filter'); if (_sf) _sf.value = ''; }         // نفس السلوك لأدوات الضيوف (v141)
   if (page === 'settings') loadSettings();
 }
@@ -4099,23 +4100,19 @@ function openGuestsPage(eventId, eventName, maxCompanions) {
   loadGuests();
 }
 
-// ترتيب ذكي: لو الاسمان أرقام → رقمي (1،2،3) · غير كذا → ترتيب الإضافة
+// ترتيب الضيوف: بترتيب الإضافة دايماً (v145)
 function smartGuestSort(a, b) {
-  // ═══ ترتيب ثابت ومتّسق (v140) ═══
-  // المشكلة القديمة: الأرقام تُقارن رقمياً لكن الرقم مع الاسم يُقارن بالتاريخ —
-  // مقارنة غير متّسقة تعطي ترتيباً عشوائياً يتغيّر مع كل إضافة ("الأسماء تتلخبط").
-  // والإضافة الجماعية تعطي الكل نفس التوقيت، فالقاعدة ترجّعهم بترتيب اعتباطي.
-  // الحل: ترتيب كلّي — الأرقام أولاً (رقمياً)، ثم الأسماء بتاريخ الإضافة،
-  // وعند التعادل أبجدياً ثم بالمعرّف — فالنتيجة واحدة مهما تغيّرت القائمة.
-  const na = String(a.name ?? '').trim(), nb = String(b.name ?? '').trim();
-  const an = /^\d+$/.test(na), bn = /^\d+$/.test(nb);
-  if (an !== bn) return an ? -1 : 1;                          // الأرقام قبل الأسماء
-  if (an) { const d = parseInt(na, 10) - parseInt(nb, 10); if (d) return d; }
+  // ═══ ترتيب ثابت (v145) ═══
+  // بترتيب الإضافة دايماً — مهما كان الاسم (رقم، اسم، ترقيم بشرطة...)
+  // تعديل اسم الضيفة ما يغيّر مكانها، لأن تاريخ الإضافة ما يتغيّر.
+  // الإضافة الجماعية تحفظ ترتيب اللصق (فرق جزء من الثانية لكل صف — v141).
+  // الدفعات القديمة اللي لها نفس التوقيت: ترتيب طبيعي (2 قبل 10) ثم المعرّف.
   const ta = Date.parse(a.created_at) || 0, tb = Date.parse(b.created_at) || 0;
   if (ta !== tb) return ta - tb;                              // الأقدم أولاً
-  const c = na.localeCompare(nb, 'ar', { numeric: true });    // تعادل التوقيت: أبجدي ثابت
+  const na = String(a.name ?? '').trim(), nb = String(b.name ?? '').trim();
+  const c = na.localeCompare(nb, 'ar', { numeric: true });
   if (c) return c;
-  return String(a.id ?? '').localeCompare(String(b.id ?? '')); // ضمان نهائي
+  return String(a.id ?? '').localeCompare(String(b.id ?? ''));
 }
 
 async function loadGuests() {
@@ -4133,7 +4130,7 @@ async function loadGuests() {
     if (data.length < PAGE) break;
     from += PAGE;
   }
-  // ترتيب ذكي: أرقام رقمياً · أسماء بترتيب الإضافة
+  // بترتيب الإضافة (v145)
   allGuests.sort(smartGuestSort);
 
   const { data: ev } = await db.from('events').select('wa_message').eq('id', currentEventId).single();
@@ -4470,7 +4467,7 @@ function openGuestActions(id) {
   if (!_sheetGuest) return;
   document.getElementById('gs-name').textContent = _sheetGuest.name;
   document.getElementById('gs-status').innerHTML = statusText(_sheetGuest.status) + (_sheetGuest.phone ? ' — ' + esc(_sheetGuest.phone) : '');
-  // v142: بوضع الباركود تظهر 3 إجراءات فقط (عرض الباركود · تعديل البيانات · حذف الضيفة)
+  // v145: بوضع الباركود: عرض الباركود · تعديل البيانات · إعادة تفعيل الباركود · حذف الضيفة
   document.querySelectorAll('#guest-sheet .gs-open-only').forEach(b => { b.style.display = (_gtMode === 'barcode') ? 'none' : ''; });
   document.getElementById('guest-sheet').style.display = 'flex';
   injectIcons(document.getElementById('guest-sheet'));
@@ -4703,6 +4700,9 @@ async function deleteGuest(id) {
 }
 
 async function resetScan(id) {
+  // v145: صار الزر جنب "حذف" بتبويب الباركود — نتأكد قبل ما نرجّع الدخول (ضغطة بالغلط تدخّل دعوة مستخدمة)
+  const _g = (allGuests || []).find(x => x.id === id);
+  if (!confirm(`إعادة تفعيل باركود ${_g ? _g.name : 'الضيفة'}؟\n\nبيرجع يقبل الدخول من جديد.`)) return;
   const r = await dbRun(db.from('guests').update({ scan_count: 0, last_scanned_at: null }).eq('id', id), 'نعيد تفعيل الباركود');
   if (!r.ok) return;
   await db.from('scan_logs').insert([{ guest_id: id, event_id: currentEventId, status: 'reset' }]);
@@ -4850,6 +4850,7 @@ async function loadScannerEvents() {
 }
 
 async function startScanner() {
+  scanCdPanelClose();   // v145: لوحة "نفس الدعوة" القديمة ما تبقى فوق مسحة جديدة
   if (qrScanner) { try { await qrScanner.stop(); } catch(e) {} }
   // نتأكد أن مكتبة الماسح جاهزة (ونحمّلها من مصدر بديل لو لزم)
   if (!(await ensureScannerLib())) {
@@ -5049,8 +5050,12 @@ async function processScan(code) {
     try { const u = new URL(code); qrCode = u.searchParams.get('gate') || u.searchParams.get('rsvp'); } catch(e) {}
   }
 
-  // نفس الدعوة قبل ثوانٍ؟ نتجاهلها (نفس منطق ماسح المشرفة) — v139
-  if (scanCooldownHit(qrCode)) return;
+  // نفس الدعوة قبل ثوانٍ؟ ما نحسبها تلقائياً — المشرفة تختار: مرافقة أو دعوة ثانية (v145)
+  if (scanCooldownHit(qrCode)) {
+    scanCooldownPrompt(qrCode, processScan, () => { if (!qrScanner && _currentPage === 'scanner' && !document.getElementById('scan-overlay')) startScanner(); });
+    return;
+  }
+  scanCdPanelClose();   // مسحة عادية جديدة — نقفل أي لوحة قديمة
 
   // تحقق: الباركود تابع للمناسبة المختارة؟
   const selectedEvent = document.getElementById('scanner-event-select').value;
@@ -5284,12 +5289,7 @@ async function downloadAllQR(clickEv) {
     if (btn) btn.innerHTML = 'جاري ضغط الملف...';
     // STORE بدل الضغط الثقيل — أخف بكثير على الذاكرة والمعالج
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `باركودات-${evName}.zip`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    rcDownloadBlob(zipBlob, 'RCode-barcodes-' + String(currentEventId || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 6) + '.zip');   // v145: اسم إنجليزي + الرابط يبقى حي حتى يكمل التنزيل
   } catch (e) {
     alert('تعذّر تجهيز الملف — جربي عدد أقل أو من كمبيوتر. (' + (e.message || e) + ')');
   } finally {
@@ -5851,7 +5851,7 @@ async function dzLoadEvent() {
   const { data: guests } = await db.from('guests').select('*').eq('event_id', eventId)
     .order('created_at', { ascending: true });
 
-  // نفس الترتيب الذكي للقائمة: أرقام رقمياً · أسماء بترتيب الإضافة
+  // نفس ترتيب قائمة الضيوف: بترتيب الإضافة
   const seen = new Set();
   dzGuests = (guests || [])
     .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; })
@@ -6475,15 +6475,32 @@ async function dzExportAll(mode) {
   }
 }
 
+// v145: حفظ ملف كتنزيل مباشر — يُستخدم للأندرويد والكمبيوتر
+// الرابط يبقى حي دقيقتين: الأندرويد يكمل التنزيل بالخلفية، والإلغاء المبكر كان يقطع الملفات الكبيرة
+function rcIsAndroid() { return /Android/i.test(navigator.userAgent || ''); }
+// اسم إنجليزي للتنزيل المباشر: كروم يتجاهل الأسماء العربية ويحفظ الملف باسم "download" بدون امتداد
+// فما تلقاه الضيفة ولا يفتح. نحتفظ بأرقام النطاق (مثل 1-100) عشان الملفات تتميّز.
+function rcAsciiZipName(fname, word) {
+  const nums = (String(fname || '').match(/\d+/g) || []).join('-');
+  return 'RCode-' + word + (nums ? '-' + nums : '') + '.zip';
+}
+function rcDownloadBlob(blob, fname) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname; a.rel = 'noopener'; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+
 // زر حفظ الصور بالاستديو — يظهر ويبقى، ما يعلّق شي
 function dzAddGalleryButton(files, area, label) {
   const btn = document.createElement('button');
   btn.className = 'btn btn-primary';
   btn.style.cssText = 'width:100%;padding:15px;font-size:14.5px;margin-bottom:8px';
   btn.innerHTML = `<span data-ic="phone" data-ic-size="16"></span> احفظي ${files.length} صورة — ${label}`;
+  const orig = btn.innerHTML;   // v145: الأصل قبل رسم الأيقونة — كانت تتكرر مع كل ضغطة
 
   btn.onclick = async () => {
-    const orig = btn.innerHTML;
     btn.innerHTML = 'جاري الفتح...';
     try {
       if (navigator.canShare && navigator.canShare({ files })) {
@@ -6518,21 +6535,26 @@ function dzAddSaveButton(blob, fname, label, area) {
   btn.className = 'btn btn-primary';
   btn.style.cssText = 'width:100%;padding:15px;font-size:14.5px;margin-bottom:8px';
   btn.innerHTML = `<span data-ic="save" data-ic-size="16"></span> احفظي ${label}`;
+  const orig = btn.innerHTML;   // v145: الأصل قبل رسم الأيقونة — كانت تتكرر مع كل ضغطة
 
+  // v145: آيفون → نافذة المشاركة (كما كان). أندرويد → تنزيل مباشر لملف التنزيلات
+  // (نافذة المشاركة بالأندرويد ما تقبل ملفات ZIP فكان الحفظ يفشل بصمت)
   btn.onclick = async () => {
-    const orig = btn.innerHTML;
-    btn.innerHTML = 'جاري الفتح...';
+    btn.innerHTML = 'جاري الحفظ...';
+    const android = rcIsAndroid();
     try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'دعوات' });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = fname;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      let done = false;
+      if (!android && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'دعوات' });
+          done = true;
+        } catch (e) {
+          btn.innerHTML = orig; injectIcons(btn); return;   // ألغت أو تعذّرت المشاركة — الزر يرجع كما كان (نفس سلوك v144)
+        }
       }
-      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${label} — تم الحفظ`;
+      if (!done) rcDownloadBlob(blob, rcAsciiZipName(fname, 'invites'));
+      btn.innerHTML = `<span data-ic="check" data-ic-size="16"></span> ${label} — تم الحفظ` +
+        (android ? `<div style="font-size:12px;font-weight:600;margin-top:4px;opacity:.85">تلقينه بملف «التنزيلات» بالجوال</div>` : '');
       btn.style.opacity = '.7';
       injectIcons(btn);
     } catch (e) {
@@ -7013,6 +7035,7 @@ function renderGateResult(result, ev, opts = {}) {
 
 // الماسح الداخلي — نفس الشاشة بالضبط لكن كطبقة فوق لوحة التحكم
 function showScanOverlay(result, ev) {
+  scanCdPanelClose();   // v145: لوحة "نفس الدعوة" القديمة ما تبقى فوق مسحة جديدة
   closeScanOverlay(false);
   const { cardHtml } = buildScanCard(result, ev, { rescan: true, rescanAction: 'closeScanOverlay()' });
   const ov = document.createElement('div');
@@ -7929,6 +7952,7 @@ async function showSupervisorScanner(eventId) {
 let supScanner = null;
 
 async function supStart() {
+  scanCdPanelClose();   // v145: لوحة "نفس الدعوة" القديمة ما تبقى فوق مسحة جديدة
   if (supScanner) { try { await supScanner.stop(); } catch(e) {} }
   // نتأكد أن مكتبة الماسح جاهزة (ونحمّلها من مصدر بديل لو لزم)
   if (!(await ensureScannerLib())) {
@@ -8008,6 +8032,44 @@ function supEventIdFromUrl() {
 // ═══════════════════════════════════════════════════════════════
 const SCAN_COOLDOWN_MS = 8000;
 
+// v145: لما تنقرأ نفس الدعوة خلال فترة التهدئة (مثل المرافقة بنفس الباركود)
+// كانت الكاميرا تنطفي بصمت وتبقى طافية — فيحسبونه معلّق.
+// الحين تطلع لوحة صغيرة والمشرفة تختار:
+//   • «احسبي مرافقة معها» → المسح العادي (يُحسب لو باقي لها دخول، وإلا يطلع "مستخدم")
+//   • «مسح دعوة ثانية»    → ترجع الكاميرا، ونفس الدعوة تبقى متجاهلة
+// ما فيه أي حساب تلقائي — منطق المسح نفسه ما تغيّر.
+function scanCdPanelClose() {
+  const p = document.getElementById('scan-cd-panel');
+  if (p) p.remove();
+}
+
+function scanCooldownPrompt(qrCode, processFn, restartFn) {
+  scanCdPanelClose();
+  const panel = document.createElement('div');
+  panel.id = 'scan-cd-panel';
+  panel.setAttribute('dir', 'rtl');
+  panel.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99999;width:min(380px,92vw);background:rgba(17,17,17,.95);color:#fff;padding:16px;border-radius:16px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.4);font-family:inherit';
+  panel.innerHTML =
+    '<div style="font-size:15px;font-weight:800;margin-bottom:4px">هذي نفس الدعوة اللي انمسحت قبل لحظات</div>' +
+    '<div style="font-size:12.5px;opacity:.8;margin-bottom:12px">لو معها مرافقة بنفس الباركود اضغطي «احسبي مرافقة»</div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button type="button" data-act="count" style="flex:1;padding:13px 8px;border:none;border-radius:12px;background:#4CAF50;color:#fff;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer">احسبي مرافقة معها</button>' +
+      '<button type="button" data-act="next" style="flex:1;padding:13px 8px;border:1px solid #555;border-radius:12px;background:#2a2a2a;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">مسح دعوة ثانية</button>' +
+    '</div>';
+  panel.querySelector('[data-act="count"]').onclick = () => {
+    panel.remove();
+    try { sessionStorage.removeItem('rc_last_scan'); } catch (e) {}
+    processFn(qrCode);              // المسح العادي بالضبط
+  };
+  panel.querySelector('[data-act="next"]').onclick = () => {
+    panel.remove();
+    // نجدد التهدئة: لو الجوال لسه على نفس الكرت ما ينحسب بالغلط
+    try { sessionStorage.setItem('rc_last_scan', JSON.stringify({ code: qrCode, at: Date.now() })); } catch (e) {}
+    try { restartFn(); } catch (e) {}
+  };
+  document.body.appendChild(panel);
+}
+
 function scanCooldownHit(qrCode) {
   if (!qrCode) return false;
   try {
@@ -8030,8 +8092,12 @@ async function supProcess(code) {
     try { const u = new URL(code); qrCode = u.searchParams.get('gate') || u.searchParams.get('rsvp'); } catch(e) {}
   }
 
-  // نفس الدعوة قبل ثوانٍ؟ نتجاهلها بصمت بدل ما نطلع "تم المسح من قبل" ظلماً
-  if (scanCooldownHit(qrCode)) return;
+  // نفس الدعوة قبل ثوانٍ؟ ما نحسبها تلقائياً — المشرفة تختار: مرافقة أو دعوة ثانية (v145)
+  if (scanCooldownHit(qrCode)) {
+    scanCooldownPrompt(qrCode, supProcess, () => { if (!supScanner && document.getElementById('sup-reader')) supStart(); });
+    return;
+  }
+  scanCdPanelClose();   // مسحة عادية جديدة — نقفل أي لوحة قديمة
 
   // بيانات المناسبة (الصور والألوان) — للشاشة الفخمة
   const { data: gateInfo } = await db.rpc('pub_gate_get', { qr_input: qrCode });
