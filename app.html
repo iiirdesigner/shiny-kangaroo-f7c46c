@@ -5844,6 +5844,25 @@ async function dzInit() {
 
 }
 
+// (v147) القيم الافتراضية للمحرر — نفس قيم الصفحة عند أول فتح
+function dzResetDesignState() {
+  dzState.namePos = { x: 0.5, y: 0.55 };
+  dzState.compPos = { x: 0.5, y: 0.64 };
+  dzState.qrPos   = { x: 0.5, y: 0.75 };
+  dzState.dragging = null;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const txt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('dz-name-size', '6');       txt('dz-name-size-val', '6');
+  set('dz-qr-size', '18');        txt('dz-qr-size-val', '18');
+  set('dz-name-color', '#2C1810'); set('dz-name-hex', '#2C1810');
+  set('dz-qr-color', '#2C1810');   set('dz-qr-hex', '#2C1810');
+  set('dz-comp-size', '4');       txt('dz-comp-size-val', '4');
+  set('dz-comp-hex', '#3D2E22');
+  set('dz-comp-label', 'عدد المرافقين');
+  set('dz-name-prefix', '');
+  const on = document.getElementById('dz-comp-on'); if (on) on.checked = false;
+}
+
 async function dzLoadEvent() {
   const eventId = document.getElementById('dz-event-select').value;
 
@@ -5858,6 +5877,7 @@ async function dzLoadEvent() {
   if (_ed) _ed.style.display = 'none';
   const _fi = document.getElementById('dz-image-input');
   if (_fi) _fi.value = '';
+  dzResetDesignState();   // (v147) الأماكن والأحجام والألوان ترجع للافتراضي — ما تنتقل من مناسبة لمناسبة
 
   if (!eventId) { dzGuests = []; document.getElementById('dz-guest-count').textContent = ''; return; }
 
