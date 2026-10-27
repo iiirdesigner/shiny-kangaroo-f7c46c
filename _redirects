@@ -1,2 +1,14 @@
-# R•Code — الموقع انتقل إلى Cloudflare. أي رابط هنا يتحوّل لنفسه على العنوان المباشر
-/*  https://rcode-a5n.pages.dev/:splat  302!
+# ── روابط الإدارة ──
+/m/*        /app.html?scan=:splat      200
+/r/*        /app.html?live=:splat      200
+/t/*        /app.html?thanks=:splat    200
+
+# ── الرابط الموحد وتقريره ──
+/c/*        /app.html?open=:splat       200
+/or/*       /app.html?openreport=:splat 200
+
+# ── الصيغة القديمة ──
+/i/*        /app.html?rsvp=:splat      200
+
+# ── الكود المباشر: rqr0.com/K7M2QXR9 ──
+/*          /app.html?rsvp=:splat      200
