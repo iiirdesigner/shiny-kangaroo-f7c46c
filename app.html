@@ -1517,7 +1517,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-10-11 · 145</span>
+    الإصدار <span style="font-weight:700">2026-10-27 · 147</span>
   </div>
 </div>
 
@@ -5846,6 +5846,19 @@ async function dzInit() {
 
 async function dzLoadEvent() {
   const eventId = document.getElementById('dz-event-select').value;
+
+  // 🛑 (v147) تصفير التنسيق عند تبديل المناسبة
+  // قبل: صورة المناسبة السابقة كانت تبقى محمّلة، فلو المناسبة الجديدة ما لها تنسيق
+  //      محفوظ تظهر الصورة القديمة — والأسوأ: الحفظ التلقائي يحفظها على المناسبة الجديدة!
+  // الحين: نلغي أي حفظ مؤجّل، ونفرّغ الصورة والمحرر، ونبدأ من الصفر لكل مناسبة.
+  clearTimeout(window._dzSaveT);
+  dzImage = null;
+  window._dzLastSaved = null;
+  const _ed = document.getElementById('dz-editor');
+  if (_ed) _ed.style.display = 'none';
+  const _fi = document.getElementById('dz-image-input');
+  if (_fi) _fi.value = '';
+
   if (!eventId) { dzGuests = []; document.getElementById('dz-guest-count').textContent = ''; return; }
 
   const { data: guests } = await db.from('guests').select('*').eq('event_id', eventId)
@@ -5976,9 +5989,11 @@ function dzStoreImage(img) {
   }
 }
 
-async function dzSaveDesign() {
+async function dzSaveDesign(forEventId) {
   const eventId = document.getElementById('dz-event-select')?.value;
   if (!eventId || !dzImage || _dzSaving) return;
+  // (v147) حماية: ما نحفظ إلا على نفس المناسبة اللي كان التعديل عليها
+  if (forEventId && forEventId !== eventId) return;
 
   // ما نحفظ إلا لو تغيّر شي فعلاً
   const snap = JSON.stringify(dzCollectDesign());
@@ -6023,6 +6038,9 @@ async function dzLoadSavedDesign(eventId) {
     const { data: ev } = await db.from('events').select('invite_design').eq('id', eventId).single();
     const d = ev?.invite_design;
     if (!d || !d.image) return;
+    // (v147) لو بدّلت المنظِّمة المناسبة أثناء التحميل — نتجاهل نتيجة المناسبة القديمة
+    const stillSame = () => document.getElementById('dz-event-select')?.value === eventId;
+    if (!stillSame()) return;
 
     const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
     const setChk = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.checked = v; };
@@ -6049,6 +6067,7 @@ async function dzLoadSavedDesign(eventId) {
     await new Promise(resolve => {
       const img = new Image();
       img.onload = () => {
+        if (!stillSame()) { resolve(); return; }   // (v147) الصورة وصلت بعد تبديل المناسبة — نتجاهلها
         dzImage = img;
         const ed = document.getElementById('dz-editor');
         if (ed) ed.style.display = 'block';
@@ -6059,6 +6078,7 @@ async function dzLoadSavedDesign(eventId) {
       img.src = d.image;
     });
 
+    if (!stillSame()) return;
     const banner = document.getElementById('dz-restored');
     if (banner) banner.style.display = 'flex';   // تبقى ثابتة — اختفاؤها كان يحرّك الصفحة
   } catch (e) { /* ما فيه تنسيق محفوظ — عادي */ }
@@ -6175,7 +6195,9 @@ function dzRender() {
   if (!dzImage) return;
   clearTimeout(window._dzSaveT);
   if (dzState.dragging) { dzDraw(); return; }   // أثناء السحب: رسم فقط بدون حفظ
-  window._dzSaveT = setTimeout(dzSaveDesign, 2500);   // حفظ بعد ما تهدأ التعديلات
+  // (v147) نثبّت المناسبة وقت الجدولة — لو بدّلت المنظِّمة المناسبة قبل ما يُنفَّذ الحفظ، يُلغى
+  const _forEvent = document.getElementById('dz-event-select')?.value || '';
+  window._dzSaveT = setTimeout(() => dzSaveDesign(_forEvent), 2500);   // حفظ بعد ما تهدأ التعديلات
   dzDraw();
 }
 
@@ -7326,10 +7348,42 @@ async function showOpenReportPage(eventId) {
   }
   render(data.entries || []);
 
-  setInterval(async () => {
+  rcPoll(async () => {   // v146 (كان setInterval)
     const { data: d2 } = await db.rpc('pub_open_report_get', { event_input: eventId });
-    if (d2 && d2.entries) render(d2.entries);
+    if (d2 && d2.entries) { render(d2.entries); return true; }
+    return false;
   }, 30000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  v146: تحديث دوري لطيف على السيرفر — للتقارير المباشرة
+//  (طيحة 20 أكتوبر: صفحات التقرير كانت تسحب كل الضيوف كل 5 ثواني
+//   حتى والجوال مقفول، والطلبات تتكدّس لما السيرفر يبطّي فيختنق)
+//  • يوقف لما الصفحة مخفية (جوال مقفول / تبويب بالخلفية) ويرجع فوراً لما تظهر
+//  • ما يبدأ طلب جديد قبل ما يخلص اللي قبله
+//  • لو فشل: يهدّي (×2 لين دقيقة)، وأول ما ينجح يرجع لسرعته
+//  الدالة ترجّع false عند الفشل.
+// ═══════════════════════════════════════════════════════════════
+function rcPoll(fn, baseMs) {
+  let busy = false, delay = baseMs, timer = null;
+  const stop = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const schedule = () => { if (!timer && !document.hidden) timer = setTimeout(run, delay); };
+  async function run() {
+    timer = null;
+    if (document.hidden) return;
+    if (busy) { schedule(); return; }
+    busy = true;
+    let ok = true;
+    try { if ((await fn()) === false) ok = false; } catch (e) { ok = false; }
+    busy = false;
+    delay = ok ? baseMs : Math.min(delay * 2, 60000);
+    schedule();
+  }
+  document.addEventListener('visibilitychange', () => {
+    stop();
+    if (!document.hidden) run();
+  });
+  schedule();
 }
 
 async function showLivePage(eventId) {
@@ -7452,7 +7506,8 @@ async function showLivePage(eventId) {
     let allG = [], f = 0;
     while (true) {
       const { data, error } = await db.rpc('pub_live_guests', { event_input: eventId, off_input: f });
-      if (error || !data || !data.length) break;
+      if (error) return false;            // v146: نخلي آخر بيانات معروضة ونهدّي بدل ما نصفّر الأرقام
+      if (!data || !data.length) break;
       allG.push(...data);
       if (data.length < 1000) break;
       f += 1000;
@@ -7490,7 +7545,7 @@ async function showLivePage(eventId) {
   }
 
   await refresh();
-  setInterval(refresh, 5000);
+  rcPoll(refresh, 5000);   // v146 (كان setInterval)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7634,7 +7689,7 @@ async function showScanReportPage(eventId) {
         '<div style="padding:36px;text-align:center;color:#B08A54;font-size:14px;line-height:2">'
         + 'تعذّر تحميل البيانات حالياً<br>'
         + '<span style="font-size:12.5px;color:#aaa">المناسبة وبياناتها محفوظة — جرّبي تحديث الصفحة</span></div>';
-      return;
+      return false;   // v146: يهدّي التحديث بدل ما يضغط على السيرفر
     }
 
     srGuests = all;
@@ -7702,7 +7757,7 @@ async function showScanReportPage(eventId) {
   }
 
   await srRefresh();
-  setInterval(srRefresh, 5000);
+  rcPoll(srRefresh, 5000);   // v146 (كان setInterval)
 }
 
 // ===== BULK QR GENERATOR =====
