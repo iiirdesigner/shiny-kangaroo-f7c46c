@@ -1517,7 +1517,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-10-27 · 147</span>
+    الإصدار <span style="font-weight:700">2026-11-02 · 148</span>
   </div>
 </div>
 
@@ -3007,7 +3007,7 @@ function switchAuthMode(mode) {
 }
 
 async function loginWithCode() {
-  const code = document.getElementById('login-code').value.trim().toUpperCase();
+  const code = rcLatinDigits(document.getElementById('login-code').value.replace(RC_INVISIBLE, '')).trim().toUpperCase();   // v148
   if (!code) return showAuthError('أدخلي رمز الدخول');
 
   // التحقق عبر دالة سيرفر آمنة (بدون كشف جدول الرموز)
@@ -3037,13 +3037,63 @@ async function loginWithCode() {
   playLoginTransition(() => showApp());
 }
 
-async function login() {
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
-  if (!email || !password) return showAuthError('أدخلي البريد وكلمة المرور');
+// ═══════════════════════════════════════════════════════════════
+//  v148: تنظيف بيانات الدخول
+//  قبل: الأرقام العربية (١٢٣) تختلف عن الإنجليزية (123) — فلو الرمز انكتب بكيبورد
+//       والمستخدمة كتبته بكيبورد ثاني، يطلع "خاطئة" وهو صحيح. ومسافة زايدة أو حرف
+//       مخفي (يدخل من الكيبورد العربي) بالإيميل يخرّب الدخول بصمت.
+// ═══════════════════════════════════════════════════════════════
+const RC_INVISIBLE = /[​-‏‪-‮⁦-⁩﻿ ]/g;
+function rcLatinDigits(s) {
+  return String(s || '')
+    .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))   // ٠-٩
+    .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));  // ۰-۹
+}
+function rcArabicDigits(s) {
+  return String(s || '').replace(/[0-9]/g, d => String.fromCharCode(0x0660 + Number(d)));
+}
+function rcCleanEmail(s) {
+  return rcLatinDigits(String(s || '').replace(RC_INVISIBLE, '')).trim().toLowerCase();
+}
+function rcCleanPassword(s) {
+  return String(s || '').replace(RC_INVISIBLE, '');   // نشيل المخفي بس — باقي الرمز كما هو
+}
+// رسالة مفهومة حسب نوع الخطأ (بدل "خاطئة" لكل شي)
+function rcAuthErrorMsg(error) {
+  const m = String(error?.message || '').toLowerCase();
+  const st = error?.status;
+  if (st === 429 || m.includes('rate') || m.includes('too many')) return 'محاولات كثيرة — انتظري دقيقة ثم حاولي مرة ثانية';
+  if (m.includes('not confirmed')) return 'الحساب غير مفعّل — تواصلي مع الإدارة';
+  if (m.includes('fetch') || m.includes('network') || st === 0 || error?.name === 'AuthRetryableFetchError') return 'تعذّر الاتصال — تحققي من الإنترنت وحاولي مرة ثانية';
+  return 'بريد إلكتروني أو كلمة مرور خاطئة\nتأكدي إنك كتبتي كلمة المرور بيدك (مو المحفوظة بالجوال) وبأرقام إنجليزية';
+}
 
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
-  if (error) return showAuthError('بريد إلكتروني أو كلمة مرور خاطئة');
+let _rcLoggingIn = false;
+async function login() {
+  if (_rcLoggingIn) return;   // v148: منع الضغط المتكرر
+  const email = rcCleanEmail(document.getElementById('login-email').value);
+  const typed = rcCleanPassword(document.getElementById('login-password').value);
+  if (!email || !typed) return showAuthError('أدخلي البريد وكلمة المرور');
+  const errEl = document.getElementById('auth-error'); if (errEl) errEl.style.display = 'none';
+
+  // نجرب الرمز كما انكتب، ولو فيه أرقام نجرب صيغتها الثانية (عربي ↔ إنجليزي)
+  // — عشان الحسابات القديمة اللي انحفظ رمزها بأرقام عربية تدخل بعد
+  const tries = [typed];
+  const latin = rcLatinDigits(typed), arabic = rcArabicDigits(latin);
+  if (latin !== typed) tries.push(latin);
+  if (/[0-9]/.test(latin) && arabic !== typed) tries.push(arabic);
+
+  _rcLoggingIn = true;
+  let data = null, error = null;
+  try {
+    for (const password of tries) {
+      ({ data, error } = await db.auth.signInWithPassword({ email, password }));
+      if (!error) break;
+      const m = String(error.message || '').toLowerCase();
+      if (!m.includes('invalid')) break;   // خطأ ثاني (اتصال/محاولات كثيرة) — ما نكرر
+    }
+  } finally { _rcLoggingIn = false; }
+  if (error) return showAuthError(rcAuthErrorMsg(error));
 
   // التحقق من أن الحساب مفعّل
   const { data: profile } = await db.from('profiles').select('is_active').eq('id', data.user.id).single();
@@ -3071,6 +3121,7 @@ async function logout() {
 function showAuthError(msg) {
   const el = document.getElementById('auth-error');
   el.textContent = msg;
+  el.style.whiteSpace = 'pre-line';   // v148: الرسالة ممكن تكون سطرين
   el.style.display = 'block';
 }
 
@@ -5576,13 +5627,16 @@ async function renameUser(u) {
 }
 
 async function changeUserPassword(u) {
-  const pw = prompt(`كلمة مرور جديدة لـ ${u.full_name || u.email}:\n(٦ أحرف على الأقل)`);
-  if (!pw) return;
+  const raw = prompt(`كلمة مرور جديدة لـ ${u.full_name || u.email}:\n(٦ أحرف على الأقل)`);
+  if (!raw) return;
+  // v148: الأرقام تنحفظ إنجليزية دايماً + بدون مسافات أو حروف مخفية بالأطراف
+  const pw = rcLatinDigits(rcCleanPassword(raw)).trim();
   if (pw.length < 6) return alert('كلمة المرور قصيرة (٦ أحرف على الأقل)');
   // نحفظها في الملف الشخصي كمرجع للأدمن + نحدثها فعلياً
-  const { error } = await db.rpc('admin_set_password', { user_id_input: u.id, new_password: pw });
-  if (error) {
- alert('تعذّر التغيير من هنا.\n\nغيّريها من Supabase Authentication Users ' + u.email);
+  const { data: setRes, error } = await db.rpc('admin_set_password', { user_id_input: u.id, new_password: pw });
+  // v148: قبل كانت تقول "تم" حتى لو السيرفر رفض التغيير بصمت
+  if (error || !setRes || setRes.success !== true) {
+    alert('ما تغيّرت كلمة المرور ❌\n\n' + (setRes?.message || error?.message || 'حاولي مرة ثانية') + '\n\nلو تكرر: غيّريها من Supabase ← Authentication ← Users ← ' + u.email);
     return;
   }
   logActivity('تغيير كلمة مرور', u.full_name || u.email);
@@ -8216,8 +8270,9 @@ async function saveSettingsName() {
 }
 
 async function saveSettingsPassword() {
-  const p1 = document.getElementById('settings-pass1').value;
-  const p2 = document.getElementById('settings-pass2').value;
+  // v148: الأرقام تنحفظ إنجليزية دايماً
+  const p1 = rcLatinDigits(rcCleanPassword(document.getElementById('settings-pass1').value)).trim();
+  const p2 = rcLatinDigits(rcCleanPassword(document.getElementById('settings-pass2').value)).trim();
   const msg = document.getElementById('settings-pass-msg');
 
   if (p1.length < 6) {
