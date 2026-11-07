@@ -1517,7 +1517,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-11-07 · 149</span>
+    الإصدار <span style="font-weight:700">2026-11-07 · 150</span>
   </div>
 </div>
 
@@ -1606,6 +1606,9 @@ function injectIcons(root=document) {
         <div style="padding:14px 16px 8px;font-size:11px;font-weight:800;color:var(--text-light);letter-spacing:1px;font-family:'Cormorant Garamond',serif">الإدارة</div>
         <button class="nav-item" onclick="showPage('users')" id="nav-users">
           <span data-ic="users" data-ic-size="19" style="color:var(--gold);min-width:22px;display:inline-flex"></span> المستخدمون
+        </button>
+        <button class="nav-item" onclick="showPage('monitor')" id="nav-monitor">
+          <span data-ic="bolt" data-ic-size="19" style="color:var(--gold);min-width:22px;display:inline-flex"></span> حالة الموقع
         </button>
       </div>
 
@@ -2378,6 +2381,20 @@ function injectIcons(root=document) {
       </div>
 
       <!-- USERS PAGE (Admin only) -->
+      <!-- ═══ v150: مراقبة السيرفر (للمالكة) ═══ -->
+      <div id="page-monitor" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">حالة الموقع</div>
+            <div class="page-subtitle">نظرة سريعة: هل الموقع شغّال تمام؟</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="loadMonitor()" style="padding:9px 14px;font-size:13px"><span data-ic="refresh" data-ic-size="15"></span> تحديث</button>
+          </div>
+        </div>
+        <div id="monitor-body"></div>
+      </div>
+
       <!-- ═══ v149: سلة المحذوفات + سجل الحذف ═══ -->
       <div id="page-trash" class="page">
         <div class="page-header">
@@ -3229,7 +3246,7 @@ function playSplash() {
 let _currentPage = 'dashboard';   // كان محذوفاً → openMenuSheet تنهار
 
 // صفحات للمالكة فقط — نمنع الوصول لها بالتنقّل المباشر
-const ADMIN_ONLY_PAGES = ['users'];
+const ADMIN_ONLY_PAGES = ['users', 'monitor'];
 
 // لون المناسبة في الماسح: يجي مع الاختيار ويروح مع إلغائه أو الخروج من الصفحة
 function applyScannerColor() {
@@ -3281,6 +3298,7 @@ function showPage(page) {
   if (page === 'guests') { gtTab('barcode'); const _sf = document.getElementById('guest-status-filter'); if (_sf) _sf.value = ''; }         // نفس السلوك لأدوات الضيوف (v141)
   if (page === 'settings') loadSettings();
   if (page === 'trash') loadTrash();   // v149
+  if (page === 'monitor') loadMonitor();   // v150
 }
 
 // ===== DASHBOARD =====
@@ -3417,6 +3435,7 @@ function openMenuSheet() {
   html += item('scan', 'ماسح الدخول', 'scanner');
   html += sectionLabel('الإدارة');
   if (isAdmin) html += item('users', 'المستخدمون', 'users');
+  if (isAdmin) html += item('bolt', 'حالة الموقع', 'monitor');   // v150
   html += item('trash', 'سلة المحذوفات', 'trash');   // v149
   html += item('settings', 'الإعدادات', 'settings');
 
@@ -4160,6 +4179,182 @@ async function deleteEvent(id) {
   if (!r.ok) return;
   logActivity('حذف مناسبة', evName || id);   // v149: سجل الحذف
   loadEvents();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  v150: صفحة مراقبة السيرفر (للمالكة بس — السيرفر يرفض غيرها)
+//  الأرقام من rc_health_stats، والسرعة نقيسها من الجهاز نفسه.
+//  التنبيهات نفسها يرسلها برنامج rcode-monitor على Cloudflare كل 5 دقايق.
+// ═══════════════════════════════════════════════════════════════
+const RC_DB_LIMIT = 8 * 1024 ** 3;   // باقة Pro
+function rcBytes(n) {
+  n = Number(n) || 0;
+  if (n >= 1024 ** 3) return (n / 1024 ** 3).toFixed(2) + ' GB';
+  if (n >= 1024 ** 2) return (n / 1024 ** 2).toFixed(1) + ' MB';
+  return Math.round(n / 1024) + ' KB';
+}
+function rcAgo(iso) {
+  if (!iso) return null;
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'الحين';
+  if (m < 60) return `قبل ${m} دقيقة`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `قبل ${h} ساعة` : `قبل ${Math.round(h / 24)} يوم`;
+}
+async function loadMonitor() {
+  const box = document.getElementById('monitor-body');
+  if (!box) return;
+  box.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-light)">جاري الفحص…</div>';
+  const t0 = performance.now();
+  let res;
+  try { res = await db.rpc('rc_health_stats'); } catch (e) { res = { error: e }; }
+  const ms = Math.round(performance.now() - t0);
+  if (res.error || !res.data) {
+    const missing = /rc_health_stats|PGRST202|Could not find/i.test(String(res.error?.message || '') + String(res.error?.code || ''));
+    box.innerHTML = `<div class="table-wrap" style="padding:26px;text-align:center;color:var(--text-light);line-height:1.9">
+      ${missing ? 'صفحة المراقبة غير مفعّلة بعد في قاعدة البيانات.' : '⚠️ تعذّر الوصول لقاعدة البيانات — ' + esc(res.error?.message || 'تحققي من الاتصال')}
+      <div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="loadMonitor()">إعادة المحاولة</button></div></div>`;
+    return;
+  }
+  const d = res.data;
+  const dbRatio = (Number(d.db_bytes) || 0) / RC_DB_LIMIT;
+  const cRatio = (Number(d.conns) || 0) / (Number(d.max_conns) || 1);
+  const hbMin = d.heartbeat ? (Date.now() - new Date(d.heartbeat).getTime()) / 60000 : null;
+
+  // ── كل شي بلغة بسيطة (العميلة مو متخصصة) ──
+  const speedTxt = ms > 3000 ? 'بطيء' : ms > 1200 ? 'مقبول' : 'سريع';
+  const loadTxt  = cRatio > 0.8 ? 'عالي' : cRatio > 0.5 ? 'متوسط' : 'هادي';
+  const spaceTxt = dbRatio > 0.75 ? 'قربت تخلص' : dbRatio > 0.5 ? 'نص المساحة' : 'باقي كثير';
+
+  const issues = [];
+  if (ms > 3000) issues.push('الموقع بطيء شوي الحين');
+  if (dbRatio > 0.75) issues.push('مساحة الموقع قربت تخلص');
+  if (cRatio > 0.8) issues.push('فيه ضغط كبير على الموقع');
+  const watcherOk = hbMin !== null && hbMin < 15;
+
+  const pillStyle = 'font-size:15.5px;font-weight:800;padding:16px 18px;border-radius:16px;margin-bottom:14px;line-height:1.7';
+  const pill = issues.length
+    ? `<div style="background:#FFF4E5;color:#9A5B00;border:1px solid #F5D7A8;${pillStyle}">🟠 ${esc(issues.join(' · '))}</div>`
+    : `<div style="background:#EAF7EE;color:#2E7D32;border:1px solid #BFE3C9;${pillStyle}">✅ الموقع شغّال تمام<div style="font-size:12.5px;font-weight:600;opacity:.85">الدعوات تفتح، والبيانات محفوظة، وما فيه أي ضغط</div></div>`;
+
+  const bar = (ratio, warnAt) => {
+    const pct = Math.max(3, Math.min(100, Math.round(ratio * 100)));
+    const col = ratio > warnAt ? '#E08A1E' : 'var(--rose)';
+    return `<div style="height:9px;background:var(--rose-light);border-radius:6px;overflow:hidden;margin-top:10px"><div style="width:${pct}%;height:100%;background:${col};border-radius:6px"></div></div>`;
+  };
+  const card = (title, value, hint, extra = '') => `
+    <div class="table-wrap" style="padding:16px 18px">
+      <div style="font-size:12.5px;color:var(--text-light);font-weight:700">${title}</div>
+      <div style="font-size:21px;font-weight:800;margin-top:4px">${value}</div>
+      ${extra}
+      ${hint ? `<div style="font-size:11.5px;color:var(--text-light);margin-top:8px;line-height:1.6">${hint}</div>` : ''}
+    </div>`;
+
+  const levelIc = { down: '🔴', warn: '🟠', ok: '✅' };
+  const alerts = (d.alerts || []).map(a => `
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>${levelIc[a.level] || '•'}</div>
+      <div style="flex:1;font-size:13.5px;line-height:1.7">${esc(a.message || '')}
+        <div style="font-size:11.5px;color:var(--text-light)" dir="ltr">${esc(rcFmtTime(a.at))}</div></div>
+    </div>`).join('');
+
+  const tech = `
+    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>الرد</span><span dir="ltr">${(ms / 1000).toFixed(2)} s</span></div>
+    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>المساحة</span><span dir="ltr">${rcBytes(d.db_bytes)} / 8 GB</span></div>
+    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>الاتصالات</span><span dir="ltr">${d.conns} / ${d.max_conns}</span></div>
+    ${d.cache_hit != null ? `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>Cache hit</span><span dir="ltr">${d.cache_hit}%</span></div>` : ''}
+    ${(d.tables || []).map(t => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span dir="ltr">${esc(t.name)}</span><span dir="ltr">${rcBytes(t.bytes)} · ${Number(t.rows || 0).toLocaleString('en')}</span></div>`).join('')}`;
+
+  box.innerHTML = `
+    ${pill}
+    <div class="table-wrap" style="padding:13px 18px;margin-bottom:14px;font-size:13px;line-height:1.8">
+      ${watcherOk
+        ? `🔔 <b>التنبيهات شغّالة</b> · الموقع ينفحص لحاله كل 5 دقايق (آخر فحص ${rcAgo(d.heartbeat)}). لو صار شي يوصلك إيميل.`
+        : `<span style="color:#C62828;font-weight:700">⚠️ التنبيهات ${d.heartbeat ? 'متوقفة — آخر فحص ' + rcAgo(d.heartbeat) : 'مو مفعّلة بعد'}</span>`}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
+      ${card('سرعة الموقع', speedTxt, 'كم ياخذ الموقع عشان يفتح الحين')}
+      ${card('الضغط على الموقع', loadTxt, 'كم شخص يستخدم الموقع بنفس اللحظة', bar(cRatio, 0.8))}
+      ${card('المساحة', spaceTxt, `مستخدم ${Math.max(1, Math.round(dbRatio * 100))}% من مساحة الموقع`, bar(dbRatio, 0.75))}
+      ${card('المناسبات', Number(d.events || 0).toLocaleString('en'), `${Number(d.guests || 0).toLocaleString('en')} ضيف · ${Number(d.users || 0).toLocaleString('en')} حساب`)}
+      ${d.trash ? card('سلة المحذوفات', Number(d.trash.count || 0), 'مناسبات محذوفة تقدرين ترجعينها') : ''}
+    </div>
+    ${rcBillingHtml(d.billing)}
+    <div class="table-wrap" style="padding:14px 18px;margin-bottom:14px">
+      <div style="font-weight:800;font-size:14px;margin-bottom:4px">آخر التنبيهات</div>
+      ${alerts || '<div style="padding:14px 0;color:var(--text-light);font-size:13px">ما صار أي تنبيه — كل شي هادي 🤍</div>'}
+    </div>
+    <details class="table-wrap" style="padding:12px 18px;font-size:12.5px;color:var(--text-light)">
+      <summary style="cursor:pointer;font-weight:700">تفاصيل تقنية (للمطوّرة)</summary>
+      <div style="margin-top:8px">${tech}</div>
+    </details>`;
+  window._rcBilling = Array.isArray(d.billing) ? d.billing : [];
+  setTimeout(injectIcons, 30);
+}
+
+// ── الاشتراكات ومواعيد التجديد (v150) ──
+//  المواعيد تتحط يدوياً مرة وحدة (Supabase ما يعطي موعد الفاتورة لبرامج خارجية)،
+//  وبعدها الصفحة تحسب التجديد الجاي، ونظام التنبيه يذكّر قبله بـ 7 و3 أيام ويوم.
+function rcNextDue(it) {
+  const t = new Date(Date.now() + 3 * 3600 * 1000);
+  const today = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate()));
+  if (it.cycle === 'yearly' && it.date) {
+    const m = String(it.date).match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m) return null;
+    let due = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    while (due < today) due = new Date(Date.UTC(due.getUTCFullYear() + 1, due.getUTCMonth(), due.getUTCDate()));
+    return { due, days: Math.round((due - today) / 86400000) };
+  }
+  const day = parseInt(it.day, 10); if (!(day >= 1 && day <= 31)) return null;
+  const at = (y, mo) => new Date(Date.UTC(y, mo, Math.min(day, new Date(Date.UTC(y, mo + 1, 0)).getUTCDate())));
+  let due = at(today.getUTCFullYear(), today.getUTCMonth());
+  if (due < today) due = at(today.getUTCFullYear(), today.getUTCMonth() + 1);
+  return { due, days: Math.round((due - today) / 86400000) };
+}
+function rcBillingHtml(items) {
+  if (!Array.isArray(items) || !items.length) return '';
+  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const rows = items.map((it, i) => {
+    const n = rcNextDue(it);
+    const when = !n ? '<span style="color:#9A5B00;font-weight:700">حددي موعد التجديد</span>'
+      : `${n.due.getUTCDate()} ${months[n.due.getUTCMonth()]}${n.due.getUTCFullYear() !== new Date().getFullYear() ? ' ' + n.due.getUTCFullYear() : ''}
+         <span style="color:${n.days <= 3 ? '#C62828' : 'var(--text-light)'};font-weight:${n.days <= 3 ? 800 : 600}"> · ${n.days === 0 ? 'اليوم' : n.days === 1 ? 'بكرة' : 'بعد ' + n.days + (n.days <= 10 ? ' أيام' : ' يوم')}</span>`;
+    const safeUrl = /^https:\/\//.test(String(it.url || '')) ? esc(it.url) : '';
+    return `
+      <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="font-weight:800;font-size:14px">${esc(it.name || '')}</div>
+        <div style="font-size:12.5px;color:var(--text-light);margin-top:2px">${esc(it.amount || '')}</div>
+        <div style="font-size:13px;margin-top:6px">التجديد الجاي: ${when}</div>
+        <div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">
+          ${safeUrl ? `<a href="${safeUrl}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="padding:8px 14px;font-size:12.5px;text-decoration:none;width:auto">صفحة الدفع</a>` : ''}
+          <button class="btn btn-secondary btn-sm" style="padding:8px 14px;font-size:12.5px;width:auto" onclick="rcEditBilling(${i})">تعديل الموعد</button>
+        </div>
+      </div>`;
+  }).join('');
+  return `<div class="table-wrap" style="padding:14px 18px;margin-bottom:14px">
+      <div style="font-weight:800;font-size:14px">الاشتراكات والتجديد</div>
+      <div style="font-size:12px;color:var(--text-light);margin-top:2px">يوصلك إيميل تذكير قبل التجديد بـ 7 و3 أيام ويوم، عشان تتأكدين إن البطاقة فيها رصيد</div>
+      ${rows}</div>`;
+}
+async function rcEditBilling(i) {
+  const items = JSON.parse(JSON.stringify(window._rcBilling || []));
+  const it = items[i]; if (!it) return;
+  if (it.cycle === 'yearly') {
+    const v = prompt(`موعد تجديد «${it.name}» (سنة-شهر-يوم)\nمثال: 2027-07-14`, it.date || '');
+    if (v === null) return;
+    const clean = rcLatinDigits(v).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(clean) || isNaN(new Date(clean))) return alert('اكتبي التاريخ بهذا الشكل: 2027-07-14');
+    it.date = clean;
+  } else {
+    const v = prompt(`يوم تجديد «${it.name}» بالشهر (من 1 إلى 31)\nتلقينه في صفحة الدفع: تاريخ الفاتورة الجاية`, it.day || '');
+    if (v === null) return;
+    const day = parseInt(rcLatinDigits(v), 10);
+    if (!(day >= 1 && day <= 31)) return alert('اكتبي رقم من 1 إلى 31');
+    it.day = day;
+  }
+  let res;
+  try { res = await db.rpc('rc_billing_set', { p_items: items }); } catch (e) { res = { error: e }; }
+  if (res.error || !res.data || res.data.ok !== true) return alert('ما انحفظ ❌\n\n' + (res.data?.message || res.error?.message || 'حاولي مرة ثانية'));
+  loadMonitor();
 }
 
 // ═══════════════════════════════════════════════════════════════
