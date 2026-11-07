@@ -1517,7 +1517,7 @@ function injectIcons(root=document) {
     </div>
   </div>
   <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#B9A088;font-size:11px;letter-spacing:.5px;pointer-events:none">
-    الإصدار <span style="font-weight:700">2026-11-02 · 148</span>
+    الإصدار <span style="font-weight:700">2026-11-07 · 149</span>
   </div>
 </div>
 
@@ -1610,6 +1610,9 @@ function injectIcons(root=document) {
       </div>
 
       <div style="padding:14px 16px 8px;font-size:11px;font-weight:800;color:var(--text-light);letter-spacing:1px;font-family:'Cormorant Garamond',serif"> </div>
+      <button class="nav-item" onclick="showPage('trash')" id="nav-trash">
+        <span data-ic="trash" data-ic-size="19" style="color:var(--gold);min-width:22px;display:inline-flex"></span> سلة المحذوفات
+      </button>
       <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
         <span data-ic="settings" data-ic-size="19" style="color:var(--gold);min-width:22px;display:inline-flex"></span> الإعدادات
       </button>
@@ -2375,6 +2378,21 @@ function injectIcons(root=document) {
       </div>
 
       <!-- USERS PAGE (Admin only) -->
+      <!-- ═══ v149: سلة المحذوفات + سجل الحذف ═══ -->
+      <div id="page-trash" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">سلة المحذوفات</div>
+            <div class="page-subtitle">المناسبات المحذوفة تبقى هنا 30 يوم وتقدرين ترجعينها كاملة</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button id="trash-tab-bin" class="btn btn-primary btn-sm" onclick="trashTab('bin')" style="flex:1;width:auto;padding:9px 12px;font-size:13px">في السلة</button>
+          <button id="trash-tab-log" class="btn btn-secondary btn-sm" onclick="trashTab('log')" style="flex:1;width:auto;padding:9px 12px;font-size:13px">سجل الحذف كامل</button>
+        </div>
+        <div id="trash-list"></div>
+      </div>
+
       <div id="page-users" class="page">
         <div class="page-header">
           <div>
@@ -3262,6 +3280,7 @@ function showPage(page) {
   { const _cd = document.getElementById('scan-cd-panel'); if (_cd && page !== 'scanner') _cd.remove(); }   // v145: لوحة "نفس الدعوة" ما تبقى فوق الصفحات الثانية
   if (page === 'guests') { gtTab('barcode'); const _sf = document.getElementById('guest-status-filter'); if (_sf) _sf.value = ''; }         // نفس السلوك لأدوات الضيوف (v141)
   if (page === 'settings') loadSettings();
+  if (page === 'trash') loadTrash();   // v149
 }
 
 // ===== DASHBOARD =====
@@ -3398,6 +3417,7 @@ function openMenuSheet() {
   html += item('scan', 'ماسح الدخول', 'scanner');
   html += sectionLabel('الإدارة');
   if (isAdmin) html += item('users', 'المستخدمون', 'users');
+  html += item('trash', 'سلة المحذوفات', 'trash');   // v149
   html += item('settings', 'الإعدادات', 'settings');
 
   box.innerHTML = html;
@@ -4120,13 +4140,13 @@ async function deleteEvent(id) {
 
   // لو تعذّر جلب الاسم، نرجع للتأكيد العادي بدل ما نمنع الحذف نهائياً
   if (!evName) {
-    if (!confirm('⚠️ حذف نهائي — سيُحذف كل الضيوف وسجلات الدخول والتهاني.\nلا يمكن التراجع.\n\nمتأكدة؟')) return;
+    if (!confirm('حذف المناسبة؟\n\nبتنتقل مع ضيوفها لسلة المحذوفات، وتقدرين ترجعينها خلال 30 يوم.')) return;
   } else {
     const typed = prompt(
-      '⚠️ حذف نهائي — لا يمكن التراجع عنه\n\n'
+      '⚠️ حذف المناسبة\n\n'
       + `المناسبة: ${evName}\n`
       + (guestCount !== null ? `عدد الضيوف: ${guestCount}\n` : '')
-      + '\nسيُحذف معها كل الضيوف وسجلات الدخول والتهاني.\n\n'
+      + '\nبتنتقل مع ضيوفها وسجلاتها لسلة المحذوفات، وتقدرين ترجعينها خلال 30 يوم.\n\n'
       + 'للتأكيد، اكتبي اسم المناسبة بالضبط:'
     );
     if (typed === null) return;
@@ -4138,7 +4158,92 @@ async function deleteEvent(id) {
 
   const r = await dbRun(db.from('events').delete().eq('id', id), 'نحذف المناسبة');
   if (!r.ok) return;
+  logActivity('حذف مناسبة', evName || id);   // v149: سجل الحذف
   loadEvents();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  v149: سلة المحذوفات + سجل الحذف
+//  الحفظ نفسه يصير بقاعدة البيانات (قبل ما تنحذف المناسبة) — هنا العرض والاسترجاع بس.
+//  المنظِّمة تشوف مناسباتها، والمالكة تشوف الكل (السيرفر يقرر، مو الصفحة).
+// ═══════════════════════════════════════════════════════════════
+let _trashTab = 'bin';
+function trashTab(t) {
+  _trashTab = t;
+  const a = document.getElementById('trash-tab-bin'), b = document.getElementById('trash-tab-log');
+  if (a && b) {
+    a.className = 'btn btn-sm ' + (t === 'bin' ? 'btn-primary' : 'btn-secondary');
+    b.className = 'btn btn-sm ' + (t === 'log' ? 'btn-primary' : 'btn-secondary');
+  }
+  loadTrash();
+}
+function rcFmtTime(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch (e) { return String(iso).slice(0, 16).replace('T', ' '); }
+}
+async function loadTrash() {
+  const box = document.getElementById('trash-list');
+  if (!box) return;
+  box.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-light)">جاري التحميل…</div>';
+  let res;
+  try { res = await db.rpc('rc_trash_list'); } catch (e) { res = { error: e }; }
+  if (res.error) {
+    const missing = /rc_trash_list|PGRST202|Could not find/i.test(String(res.error.message || '') + String(res.error.code || ''));
+    box.innerHTML = `<div class="table-wrap" style="padding:26px;text-align:center;color:var(--text-light);line-height:1.9">
+      ${missing ? 'سلة المحذوفات غير مفعّلة بعد في قاعدة البيانات.' : 'تعذّر تحميل السلة — تحققي من الاتصال وحاولي مرة ثانية.'}
+      <div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="loadTrash()">إعادة المحاولة</button></div></div>`;
+    return;
+  }
+  const isAdmin = currentProfile?.role === 'admin';
+  let rows = res.data || [];
+  window._trashRows = {}; rows.forEach(r => { window._trashRows[r.id] = r; });
+  if (_trashTab === 'bin') rows = rows.filter(r => r.status === 'in_trash');
+  if (!rows.length) {
+    box.innerHTML = `<div class="table-wrap" style="padding:34px;text-align:center;color:var(--text-light)">
+      <span data-ic="trash" data-ic-size="28" style="display:inline-flex;opacity:.45;margin-bottom:8px"></span>
+      <div>${_trashTab === 'bin' ? 'السلة فاضية' : 'ما فيه أي حذف مسجّل'}</div></div>`;
+    setTimeout(injectIcons, 30);
+    return;
+  }
+  const badge = (st, days) => {
+    if (st === 'restored') return '<span style="background:#E8F5E9;color:#2E7D32;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:20px">انسترجعت</span>';
+    if (st === 'expired')  return '<span style="background:#F3EFEA;color:#8E7A66;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:20px">انتهت المدة</span>';
+    return `<span style="background:${days <= 5 ? '#FDECEA' : '#FFF6E5'};color:${days <= 5 ? '#C62828' : '#9A6B1F'};font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:20px">باقي ${days} يوم</span>`;
+  };
+  box.innerHTML = rows.map(r => `
+    <div class="table-wrap" style="padding:16px 18px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-weight:800;font-size:15.5px">${esc(r.event_name || 'مناسبة بدون اسم')}</div>
+        ${badge(r.status, r.days_left)}
+      </div>
+      <div style="font-size:12.5px;color:var(--text-light);margin-top:8px;line-height:1.9">
+        ${isAdmin && r.organizer_email ? `الحساب: <b dir="ltr">${esc(r.organizer_email)}</b> · ` : ''}
+        الضيوف: <b>${Number(r.guest_count) || 0}</b><br>
+        انحذفت: <span dir="ltr">${esc(rcFmtTime(r.deleted_at))}</span>${r.deleted_by_email ? ` · بواسطة <b dir="ltr">${esc(r.deleted_by_email)}</b>` : ''}
+        ${r.status === 'restored' ? `<br>انسترجعت: <span dir="ltr">${esc(rcFmtTime(r.restored_at))}</span>${r.restored_by_email ? ` · بواسطة <b dir="ltr">${esc(r.restored_by_email)}</b>` : ''}` : ''}
+      </div>
+      ${r.status === 'in_trash' ? `<button class="btn btn-primary btn-sm" style="margin-top:12px;padding:9px 16px;font-size:13px" onclick="restoreFromTrash('${esc(r.id)}', this)"><span data-ic="refresh" data-ic-size="15"></span> استرجاع المناسبة</button>` : ''}
+    </div>`).join('');
+  setTimeout(injectIcons, 30);
+}
+async function restoreFromTrash(trashId, btn) {
+  const name = (window._trashRows && window._trashRows[trashId]?.event_name) || 'المناسبة';
+  if (!confirm(`استرجاع «${name}»؟\n\nبترجع المناسبة بضيوفها وردودهم وباركوداتهم وروابطها نفسها.`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'جاري الاسترجاع…'; }
+  let res;
+  try { res = await db.rpc('rc_trash_restore', { p_id: trashId }); } catch (e) { res = { error: e }; }
+  const out = res.data;
+  if (res.error || !out || out.ok !== true) {
+    alert('ما انسترجعت ❌\n\n' + (out?.message || res.error?.message || 'تحققي من الاتصال وحاولي مرة ثانية.'));
+    if (btn) { btn.disabled = false; btn.textContent = 'استرجاع المناسبة'; }
+    return;
+  }
+  const c = out.counts || {};
+  logActivity('استرجاع مناسبة', out.event_name || name);
+  alert(`تم الاسترجاع ✅\n\n${out.event_name || name}\nالضيوف: ${c.guests || 0}`);
+  loadTrash();
 }
 
 // ===== GUESTS =====
@@ -5695,11 +5800,50 @@ async function createUser() {
 }
 
 // ===== RSVP PAGE (Public) =====
+// ═══════════════════════════════════════════════════════════════
+//  v149: أدوات صفحات الضيوف
+//  1) rcRpcRetry: لو نت الضيفة ضعيف، نعيد المحاولة بدل ما نقول "دعوة غير صالحة"
+//  2) rcReadableColor: لو لون المناسبة فاتح جداً، نغمّقه شوي عشان كتابة
+//     "تأكيد الحضور" البيضاء تكون واضحة (كان الزر يختفي بالخلفية)
+// ═══════════════════════════════════════════════════════════════
+async function rcRpcRetry(fn, args, tries = 3) {
+  let last = { data: null, error: null };
+  for (let i = 0; i < tries; i++) {
+    try { last = await db.rpc(fn, args); } catch (e) { last = { data: null, error: e }; }
+    if (!last.error) return last;
+    await new Promise(r => setTimeout(r, 900 * (i + 1)));
+  }
+  return last;
+}
+function rcLoadFailedPage() {
+  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px;font-family:inherit" dir="rtl">
+    <div style="text-align:center;max-width:320px;line-height:1.9;color:#5C4A3A">
+      <div style="font-size:17px;font-weight:800;margin-bottom:6px">تعذّر تحميل الدعوة</div>
+      <div style="font-size:14px;color:#8E7A66">تحققي من الإنترنت وحاولي مرة ثانية</div>
+      <button onclick="location.reload()" style="margin-top:18px;padding:12px 26px;border:none;border-radius:14px;background:#3D2E22;color:#fff;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer">إعادة المحاولة</button>
+    </div></div>`;
+}
+function rcReadableColor(c) {
+  try {
+    let h = String(c || '').trim().replace('#', '');
+    if (h.length === 3) h = h.split('').map(x => x + x).join('');
+    if (!/^[0-9a-f]{6}$/i.test(h)) return c;
+    const n = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16) / 255)
+      .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    const L = 0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2];
+    if (L < 0.45) return c;                       // لون كافي — كما هو
+    const dark = [44, 24, 16], w = L > 0.75 ? 0.55 : 0.4;   // نخلطه مع البني الغامق
+    const rgb = [0, 2, 4].map((i, k) => Math.round(parseInt(h.substr(i, 2), 16) * (1 - w) + dark[k] * w));
+    return '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join('');
+  } catch (e) { return c; }
+}
+
 async function showRsvpPage(qrCode) {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('rsvp-page').style.display = 'flex';
 
-  const { data: guest } = await db.rpc('pub_rsvp_get', { qr_input: qrCode });
+  const { data: guest, error: _gErr } = await rcRpcRetry('pub_rsvp_get', { qr_input: qrCode });   // v149: إعادة محاولة
+  if (_gErr && !guest) { document.getElementById('rsvp-page').innerHTML = rcLoadFailedPage(); return; }
   window._rsvpQr = qrCode;
   window._rsvpName = guest?.name || null;   // اسم الضيفة — يُستعمل بتوقيع التهنئة (v139)
 
@@ -5710,7 +5854,7 @@ async function showRsvpPage(qrCode) {
   }
 
   const event = guest.events;
-  if (event?.color) document.documentElement.style.setProperty('--rose', event.color);
+  if (event?.color) document.documentElement.style.setProperty('--rose', rcReadableColor(event.color));   // v149
   if (event?.cover_image) {
     const card = document.querySelector('.rsvp-card');
     const img = document.createElement('img');
@@ -7290,9 +7434,10 @@ function copyScanReportLink() {
 // ═══════ الرابط الموحد: صفحة تأكيد الحضور (بدون باركود) ═══════
 async function showOpenRsvpPage(eventId) {
   document.getElementById('loading').style.display = 'none';
-  const { data: ev } = await db.rpc('pub_open_event_get', { event_input: eventId });
+  const { data: ev, error: _evErr } = await rcRpcRetry('pub_open_event_get', { event_input: eventId });   // v149
+  if (_evErr && !ev) { document.body.innerHTML = rcLoadFailedPage(); return; }
   if (!ev || !ev.name) { document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif" dir="rtl">المناسبة غير موجودة</div>'; return; }
-  if (ev.color) document.documentElement.style.setProperty('--rose', ev.color);
+  if (ev.color) document.documentElement.style.setProperty('--rose', rcReadableColor(ev.color));   // v149
 
   document.body.innerHTML = `
     <div id="rsvp-page" style="display:flex">
